@@ -33,6 +33,7 @@ class Task(db.Model):
     recurrence = db.Column(db.String(50), nullable=False, default='Une fois')
     zone = db.Column(db.String(50), nullable=False, default='urgent_important')
     zone_precedente = db.Column(db.String(50), nullable=True)  # pour restaurer depuis la corbeille
+    heure_debut = db.Column(db.String(5), nullable=True)  # "HH:MM" — positionnement sur la timeline
     date_creation = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     date_modification = db.Column(
         db.DateTime,
@@ -53,6 +54,7 @@ class Task(db.Model):
             'recurrence': self.recurrence,
             'zone': self.zone,
             'zone_precedente': self.zone_precedente,
+            'heure_debut': self.heure_debut,
             'date_creation': self.date_creation.isoformat() if self.date_creation else None,
             'date_modification': self.date_modification.isoformat() if self.date_modification else None,
         }

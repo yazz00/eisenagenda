@@ -3,6 +3,23 @@ from config import Config
 from models.task import db
 from routes.tasks import tasks_bp
 from routes.pages import pages_bp
+from routes.config import config_bp
+
+
+def migrer_schema(app):
+    """Ajoute les nouvelles colonnes à la base existante (migration manuelle SQLite)."""
+    with app.app_context():
+        from sqlalchemy import text
+        migrations = [
+            "ALTER TABLE tasks ADD COLUMN heure_debut VARCHAR(5)",
+        ]
+        for migration in migrations:
+            try:
+                db.session.execute(text(migration))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                pass  # colonne déjà existante
 
 
 def create_app():
@@ -16,10 +33,16 @@ def create_app():
     # Enregistrer les blueprints
     app.register_blueprint(tasks_bp)
     app.register_blueprint(pages_bp)
+    app.register_blueprint(config_bp)
 
     # Créer les tables si elles n'existent pas
     with app.app_context():
+        # Import du nouveau modèle pour que SQLAlchemy le connaisse
+        from models.config_journee import ConfigJournee
         db.create_all()
+
+    # Appliquer les migrations de schéma
+    migrer_schema(app)
 
     return app
 

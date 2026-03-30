@@ -2,6 +2,7 @@ import json
 from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template
 from models.task import db, Task
+from models.config_journee import ConfigJournee
 
 pages_bp = Blueprint('pages', __name__)
 
@@ -117,6 +118,49 @@ def page_tableau_de_bord():
         tache_urgente=tache_urgente,
         progression_jour=progression_jour,
         total_actives=total_actives,
+        aujourd_hui=aujourd_hui,
+    )
+
+
+@pages_bp.route('/today')
+def page_ma_journee():
+    """Page Ma journée — timeline verticale."""
+    aujourd_hui = date.today()
+
+    # Tâches du jour avec heure de début (planifiées sur la timeline)
+    taches_planifiees = Task.query.filter(
+        Task.zone != 'corbeille',
+        Task.date_echeance == aujourd_hui,
+        Task.heure_debut.isnot(None)
+    ).order_by(Task.heure_debut).all()
+
+    # Tâches du jour sans heure (panneau "non planifiées")
+    taches_non_planifiees = Task.query.filter(
+        Task.zone != 'corbeille',
+        Task.date_echeance == aujourd_hui,
+        Task.heure_debut.is_(None)
+    ).all()
+
+    # Configuration de la journée
+    config = ConfigJournee.query.get(1)
+    if not config:
+        config = ConfigJournee(id=1)
+        db.session.add(config)
+        db.session.commit()
+
+    taches_planifiees_json = json.dumps(
+        [t.to_dict() for t in taches_planifiees], ensure_ascii=False
+    )
+    taches_non_planifiees_json = json.dumps(
+        [t.to_dict() for t in taches_non_planifiees], ensure_ascii=False
+    )
+    config_json = json.dumps(config.to_dict(), ensure_ascii=False)
+
+    return render_template(
+        'today.html',
+        taches_planifiees_json=taches_planifiees_json,
+        taches_non_planifiees_json=taches_non_planifiees_json,
+        config_json=config_json,
         aujourd_hui=aujourd_hui,
     )
 

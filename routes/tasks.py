@@ -103,6 +103,7 @@ def creer_tache():
         categorie=donnees.get('categorie', 'Autre'),
         recurrence=donnees.get('recurrence', 'Une fois'),
         zone=donnees.get('zone', 'urgent_important'),
+        heure_debut=donnees.get('heure_debut') or None,
     )
 
     db.session.add(nouvelle_tache)
@@ -147,6 +148,9 @@ def modifier_tache(tache_id):
 
     if 'recurrence' in donnees:
         tache.recurrence = donnees['recurrence']
+
+    if 'heure_debut' in donnees:
+        tache.heure_debut = donnees['heure_debut'] or None
 
     # Gestion du changement de zone (sauvegarder la zone précédente si passage en corbeille)
     if 'zone' in donnees:

@@ -18,6 +18,11 @@
             </a>
         </li>
         <li>
+            <a href="/today" class="{% if request.endpoint == 'pages.page_ma_journee' %}actif{% endif %}">
+                ☀ <span class="label">Ma journée</span>
+            </a>
+        </li>
+        <li>
             <a href="/calendar" class="{% if request.endpoint == 'pages.page_calendrier' %}actif{% endif %}">
                 📅 <span class="label">Calendrier</span>
             </a>
@@ -80,6 +85,12 @@
                 </div>
             </div>
 
+            <!-- Champ heure de début — affiché uniquement sur la page Ma journée -->
+            <div class="form-groupe" id="groupe-heure-debut" style="display:none;">
+                <label class="form-label" for="tache-heure-debut">Heure de début</label>
+                <input type="time" id="tache-heure-debut" class="form-input">
+            </div>
+
             <div class="form-grille-2">
                 <div class="form-groupe">
                     <label class="form-label" for="tache-categorie">Catégorie</label>
@@ -91,26 +102,16 @@
                     </select>
                 </div>
                 <div class="form-groupe">
-                    <label class="form-label" for="tache-recurrence">Récurrence</label>
-                    <select id="tache-recurrence" class="form-select">
-                        <option value="Une fois" selected>Une fois</option>
-                        <option value="Quotidien">Quotidien</option>
-                        <option value="Hebdomadaire">Hebdomadaire</option>
-                        <option value="Mensuel">Mensuel</option>
+                    <label class="form-label" for="tache-zone">Zone Eisenhower</label>
+                    <select id="tache-zone" class="form-select">
+                        <option value="urgent_important">🔴 Urgent + Important</option>
+                        <option value="important">🔵 Important (planifier)</option>
+                        <option value="urgent">🟡 Urgent (déléguer)</option>
+                        <option value="neutre">⚫ Pas urgent/important</option>
+                        <option value="en_cours">⏳ En cours</option>
+                        <option value="fait">✅ Fait</option>
                     </select>
                 </div>
-            </div>
-
-            <div class="form-groupe">
-                <label class="form-label" for="tache-zone">Zone Eisenhower</label>
-                <select id="tache-zone" class="form-select">
-                    <option value="urgent_important">🔴 Urgent + Important</option>
-                    <option value="important">🔵 Important (planifier)</option>
-                    <option value="urgent">🟡 Urgent (déléguer)</option>
-                    <option value="neutre">⚫ Pas urgent/important</option>
-                    <option value="en_cours">⏳ En cours</option>
-                    <option value="fait">✅ Fait</option>
-                </select>
             </div>
 
             <div class="form-actions">
@@ -131,7 +132,7 @@
 
 let tacheEnCoursId = null; // ID de la tâche en cours de modification
 
-function ouvrirModal(tache = null, zonePrecochee = null) {
+function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) {
     const overlay = document.getElementById('modal-overlay');
     const titreModal = document.getElementById('modal-titre-label');
     const erreurs = document.getElementById('modal-erreurs');
@@ -151,8 +152,8 @@ function ouvrirModal(tache = null, zonePrecochee = null) {
         document.getElementById('tache-date').value = tache.date_echeance || '';
         document.getElementById('tache-duree').value = tache.duree_estimee || '';
         document.getElementById('tache-categorie').value = tache.categorie || 'Autre';
-        document.getElementById('tache-recurrence').value = tache.recurrence || 'Une fois';
         document.getElementById('tache-zone').value = tache.zone || 'urgent_important';
+        document.getElementById('tache-heure-debut').value = tache.heure_debut || '';
     } else {
         // Mode création
         tacheEnCoursId = null;
@@ -160,6 +161,9 @@ function ouvrirModal(tache = null, zonePrecochee = null) {
         document.getElementById('tache-id').value = '';
         if (zonePrecochee) {
             document.getElementById('tache-zone').value = zonePrecochee;
+        }
+        if (heurePrecochee) {
+            document.getElementById('tache-heure-debut').value = heurePrecochee;
         }
     }
 
@@ -189,6 +193,7 @@ async function sauvegarderTache(event) {
     const erreurs = document.getElementById('modal-erreurs');
     erreurs.style.display = 'none';
 
+    const champHeure = document.getElementById('tache-heure-debut');
     const donnees = {
         titre: document.getElementById('tache-titre').value.trim(),
         description: document.getElementById('tache-description').value.trim() || null,
@@ -197,8 +202,8 @@ async function sauvegarderTache(event) {
             ? parseInt(document.getElementById('tache-duree').value)
             : null,
         categorie: document.getElementById('tache-categorie').value,
-        recurrence: document.getElementById('tache-recurrence').value,
         zone: document.getElementById('tache-zone').value,
+        heure_debut: champHeure.value || null,
     };
 
     const estModification = tacheEnCoursId !== null;
