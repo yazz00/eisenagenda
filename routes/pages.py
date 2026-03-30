@@ -17,10 +17,18 @@ def page_matrice():
 
 @pages_bp.route('/calendar')
 def page_calendrier():
-    """Page Calendrier."""
+    """Page Calendrier — vues Jour, Semaine, Mois."""
     taches = Task.query.filter(Task.zone != 'corbeille').all()
     taches_json = json.dumps([t.to_dict() for t in taches], ensure_ascii=False)
-    return render_template('calendar.html', taches_json=taches_json)
+
+    config = ConfigJournee.query.get(1)
+    if not config:
+        config = ConfigJournee(id=1)
+        db.session.add(config)
+        db.session.commit()
+    config_json = json.dumps(config.to_dict(), ensure_ascii=False)
+
+    return render_template('calendar.html', taches_json=taches_json, config_json=config_json)
 
 
 @pages_bp.route('/dashboard')
@@ -123,6 +131,13 @@ def page_tableau_de_bord():
 
 
 @pages_bp.route('/today')
+def page_ma_journee_redirect():
+    """Redirige /today vers /calendar (vue fusionnée)."""
+    from flask import redirect
+    return redirect('/calendar')
+
+
+@pages_bp.route('/today_legacy')
 def page_ma_journee():
     """Page Ma journée — timeline verticale."""
     aujourd_hui = date.today()

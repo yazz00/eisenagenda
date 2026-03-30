@@ -3,32 +3,99 @@
 {% block titre %}Calendrier — EisenAgenda{% endblock %}
 
 {% block content %}
-<h1 class="titre-page">📅 Calendrier</h1>
 
-<!-- Contrôles du calendrier -->
+<!-- Barre de contrôles -->
 <div class="calendrier-controles">
-    <button class="btn btn-secondaire" id="btn-precedent" onclick="naviguer(-1)">&#8249; Précédent</button>
-
-    <span class="calendrier-titre-mois" id="titre-mois">Chargement...</span>
-
-    <button class="btn btn-secondaire" id="btn-suivant" onclick="naviguer(1)">Suivant &#8250;</button>
-
+    <button class="btn btn-secondaire" onclick="naviguer(-1)">&#8249; Précédent</button>
+    <span class="calendrier-titre-mois" id="titre-periode">Chargement...</span>
+    <button class="btn btn-secondaire" onclick="naviguer(1)">Suivant &#8250;</button>
     <button class="btn btn-secondaire" onclick="allerAujourdhui()">Aujourd'hui</button>
 
     <div class="toggle-vue">
-        <button id="btn-mensuel" class="actif" onclick="changerVue('mensuel')">Mois</button>
-        <button id="btn-hebdo" onclick="changerVue('hebdomadaire')">Semaine</button>
+        <button id="btn-vue-jour" onclick="changerVue('jour')">Jour</button>
+        <button id="btn-vue-semaine" onclick="changerVue('semaine')">Semaine</button>
+        <button id="btn-vue-mois" class="actif" onclick="changerVue('mois')">Mois</button>
+    </div>
+
+    <!-- Bouton config visible uniquement en vue jour et semaine -->
+    <button class="btn btn-secondaire" id="btn-config-journee"
+            style="display:none;" onclick="ouvrirConfigJournee()">
+        ⚙ Pauses
+    </button>
+</div>
+
+<!-- Conteneur principal (rempli par JS selon la vue) -->
+<div id="calendrier-conteneur"></div>
+
+<!-- ===== MODAL CONFIG JOURNÉE ===== -->
+<div class="modal-overlay" id="modal-config-overlay" onclick="fermerConfigSiExterieur(event)">
+    <div class="modal">
+        <button class="modal-fermer" onclick="fermerConfigJournee()">×</button>
+        <h2 class="modal-titre">⚙ Configuration des pauses</h2>
+
+        <div id="config-erreurs" class="alerte alerte-erreur" style="display:none;"></div>
+
+        <form onsubmit="sauvegarderConfig(event)">
+            <div style="font-size:0.82rem; color:var(--texte-secondaire); margin-bottom:1rem;">
+                Visible dans les vues Jour et Semaine.
+            </div>
+
+            <div style="border-left:3px solid #f97316; padding-left:0.75rem; margin-bottom:1rem;">
+                <div style="font-weight:700; margin-bottom:0.5rem;">🌅 Réveil & routine matinale</div>
+                <div class="form-grille-2">
+                    <div class="form-groupe">
+                        <label class="form-label" for="cfg-heure-reveil">Heure de réveil</label>
+                        <input type="time" id="cfg-heure-reveil" class="form-input">
+                    </div>
+                    <div class="form-groupe">
+                        <label class="form-label" for="cfg-duree-matin">Durée routine (min)</label>
+                        <input type="number" id="cfg-duree-matin" class="form-input" min="0" step="5">
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-left:3px solid #3b82f6; padding-left:0.75rem; margin-bottom:1rem;">
+                <div style="font-weight:700; margin-bottom:0.5rem;">🍽 Déjeuner</div>
+                <div class="form-grille-2">
+                    <div class="form-groupe">
+                        <label class="form-label" for="cfg-heure-dejeuner">Heure de début</label>
+                        <input type="time" id="cfg-heure-dejeuner" class="form-input">
+                    </div>
+                    <div class="form-groupe">
+                        <label class="form-label" for="cfg-duree-dejeuner">Durée (min)</label>
+                        <input type="number" id="cfg-duree-dejeuner" class="form-input" min="0" step="5">
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-left:3px solid #22c55e; padding-left:0.75rem; margin-bottom:1rem;">
+                <div style="font-weight:700; margin-bottom:0.5rem;">🌙 Dîner</div>
+                <div class="form-grille-2">
+                    <div class="form-groupe">
+                        <label class="form-label" for="cfg-heure-diner">Heure de début</label>
+                        <input type="time" id="cfg-heure-diner" class="form-input">
+                    </div>
+                    <div class="form-groupe">
+                        <label class="form-label" for="cfg-duree-diner">Durée (min)</label>
+                        <input type="number" id="cfg-duree-diner" class="form-input" min="0" step="5">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondaire" onclick="fermerConfigJournee()">Annuler</button>
+                <button type="submit" class="btn btn-primaire">💾 Sauvegarder</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- Conteneur du calendrier (rempli par JS) -->
-<div class="calendrier-grille" id="calendrier"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Données injectées par Flask
 const tachesInitiales = {{ taches_json | safe }};
+let configJournee = {{ config_json | safe }};
 </script>
 <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

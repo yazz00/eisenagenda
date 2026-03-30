@@ -18,12 +18,7 @@
             </a>
         </li>
         <li>
-            <a href="/today" class="{% if request.endpoint == 'pages.page_ma_journee' %}actif{% endif %}">
-                ☀ <span class="label">Ma journée</span>
-            </a>
-        </li>
-        <li>
-            <a href="/calendar" class="{% if request.endpoint == 'pages.page_calendrier' %}actif{% endif %}">
+            <a href="/calendar" class="{% if request.endpoint in ('pages.page_calendrier', 'pages.page_ma_journee') %}actif{% endif %}">
                 📅 <span class="label">Calendrier</span>
             </a>
         </li>

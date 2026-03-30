@@ -1097,6 +1097,131 @@ h1.titre-page {
     border-radius: 50%;
 }
 
+/* ===== TIMELINE SEMAINE ===== */
+
+.semaine-tl-scroll {
+    overflow-y: auto;
+    max-height: calc(100vh - 180px);
+    border: 1px solid var(--gris-bord);
+    border-radius: 0.5rem;
+    background: var(--blanc);
+}
+
+.semaine-tl-wrapper {
+    display: flex;
+    position: relative;
+    min-width: 0;
+}
+
+.semaine-tl-heures {
+    position: relative;
+    width: 44px;
+    flex-shrink: 0;
+    background: var(--fond);
+    border-right: 1px solid var(--gris-bord);
+    z-index: 5;
+}
+
+.semaine-tl-heure-label {
+    position: absolute;
+    right: 6px;
+    font-size: 0.65rem;
+    color: var(--texte-secondaire);
+    transform: translateY(-50%);
+    white-space: nowrap;
+}
+
+.semaine-tl-colonne {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--gris-bord);
+}
+
+.semaine-tl-colonne:last-child {
+    border-right: none;
+}
+
+.semaine-tl-entete {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--fond);
+    border-bottom: 2px solid var(--gris-bord);
+    padding: 0.35rem 0.25rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    line-height: 1.3;
+}
+
+.semaine-tl-entete:hover {
+    background: var(--gris-clair);
+}
+
+.semaine-tl-entete.aujourd-hui {
+    background: var(--bleu-clair);
+    color: var(--bleu);
+    border-bottom-color: var(--bleu);
+}
+
+.semaine-tl-chips {
+    padding: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    border-bottom: 1px dashed var(--bordure);
+    min-height: 4px;
+}
+
+.semaine-chip {
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.semaine-chip:hover {
+    opacity: 0.75;
+}
+
+.semaine-tl-zone {
+    position: relative;
+    flex: 1;
+}
+
+.semaine-tl-ligne-heure {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--gris-bord);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.semaine-tl-zone .bloc-pause {
+    left: 0;
+    right: 0;
+}
+
+.semaine-tl-zone .bloc-tache {
+    left: 2px;
+    right: 2px;
+}
+
+.semaine-tl-zone .timeline-maintenant {
+    left: 0;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
     .matrice-grille {
