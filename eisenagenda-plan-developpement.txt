@@ -1,0 +1,194 @@
+================================================================================
+                    EISENAGENDA — PLAN DE DÉVELOPPEMENT DÉTAILLÉ
+================================================================================
+Date : 29/03/2026
+Version : 1.0
+
+
+--------------------------------------------------------------------------------
+ÉTAPE 1 — STRUCTURE DU PROJET ET BASE DE DONNÉES
+--------------------------------------------------------------------------------
+
+Objectif : Mettre en place les fondations solides du projet.
+
+1.1 Structure des fichiers
+    eisenagenda/
+    ├── app.py                  → point d'entrée Flask
+    ├── config.py               → configuration (debug, base de données...)
+    ├── requirements.txt        → dépendances Python
+    ├── Dockerfile              → configuration Docker
+    ├── CLAUDE.md               → contexte pour Claude Code
+    ├── models/
+    │   └── task.py             → modèle de données Task
+    ├── routes/
+    │   ├── tasks.py            → routes CRUD des tâches
+    │   └── pages.py            → routes des pages principales
+    ├── templates/
+    │   ├── base.html           → template de base (navbar, styles)
+    │   ├── matrix.html         → page matrice Eisenhower
+    │   ├── calendar.html       → page calendrier
+    │   ├── dashboard.html      → page tableau de bord
+    │   └── trash.html          → page corbeille
+    └── static/
+        ├── css/
+        │   └── style.css       → styles globaux
+        └── js/
+            ├── matrix.js       → logique drag & drop
+            └── calendar.js     → logique calendrier
+
+1.2 Modèle de données — Tâche
+    - id                → identifiant unique
+    - titre             → nom de la tâche (obligatoire)
+    - description       → détails (optionnel)
+    - date_echeance     → date limite
+    - duree_estimee     → en minutes
+    - categorie         → Travail / Personnel / Santé / Autre
+    - recurrence        → Une fois / Quotidien / Hebdomadaire / Mensuel
+    - zone              → urgent_important / important / urgent / neutre /
+                          en_cours / fait / corbeille
+    - date_creation     → automatique
+    - date_modification → automatique
+
+1.3 Routes CRUD
+    POST   /api/tasks           → créer une tâche
+    GET    /api/tasks           → lister toutes les tâches
+    GET    /api/tasks/<id>      → détail d'une tâche
+    PUT    /api/tasks/<id>      → modifier une tâche
+    DELETE /api/tasks/<id>      → supprimer (corbeille)
+
+Résultat attendu : Les tâches peuvent être créées et récupérées via l'API.
+
+
+--------------------------------------------------------------------------------
+ÉTAPE 2 — PAGE MATRICE EISENHOWER
+--------------------------------------------------------------------------------
+
+Objectif : Interface principale avec les 6 zones et drag & drop.
+
+2.1 Layout de la page
+    - Navbar en haut (liens vers les pages)
+    - Bouton "Nouvelle tâche" (ouvre un formulaire modal)
+    - Grille 2x2 pour les 4 quadrants
+    - 2 colonnes supplémentaires : En cours / Fait
+
+2.2 Les 6 zones
+    🔴 Urgent + Important     (coin haut gauche)
+    🔵 Important + Planifier  (coin haut droite)
+    🟡 Urgent + Pas important (coin bas gauche)
+    ⚫ Pas urgent/important   (coin bas droite)
+    ⏳ En cours               (colonne séparée)
+    ✅ Fait                   (colonne séparée)
+
+2.3 Carte de tâche (affichée dans chaque zone)
+    - Titre
+    - Catégorie (badge coloré)
+    - Date d'échéance
+    - Durée estimée
+    - Boutons : Modifier / Déplacer vers corbeille
+
+2.4 Formulaire de création/modification
+    - Modal (fenêtre popup)
+    - Champs : titre, description, date, durée, catégorie, récurrence, zone
+    - Bouton Sauvegarder manuel (pour l'instant)
+
+2.5 Drag & drop
+    - Glisser une carte d'une zone à l'autre
+    - La zone est mise à jour en base de données automatiquement
+
+Résultat attendu : On peut créer des tâches et les déplacer entre les zones.
+
+
+--------------------------------------------------------------------------------
+ÉTAPE 3 — PAGE CALENDRIER
+--------------------------------------------------------------------------------
+
+Objectif : Visualiser les tâches dans le temps.
+
+3.1 Vue mensuelle
+    - Grille de jours du mois
+    - Chaque jour affiche les tâches de ce jour (titre + couleur de zone)
+    - Navigation mois précédent / mois suivant
+    - Clic sur un jour → affiche les tâches du jour en détail
+
+3.2 Vue hebdomadaire
+    - 7 colonnes (lundi → dimanche)
+    - Tâches placées dans leur jour
+    - Navigation semaine précédente / semaine suivante
+
+3.3 Interaction
+    - Clic sur une tâche → ouvre le formulaire de modification
+    - Clic sur un jour vide → ouvre le formulaire de création avec la date pré-remplie
+    - Bouton pour basculer entre vue mensuelle et hebdomadaire
+
+Résultat attendu : On voit toutes ses tâches dans un calendrier interactif.
+
+
+--------------------------------------------------------------------------------
+ÉTAPE 4 — PAGE TABLEAU DE BORD
+--------------------------------------------------------------------------------
+
+Objectif : Vue d'ensemble rapide de sa journée et de sa semaine.
+
+4.1 Résumé du jour
+    - Tâches urgentes d'aujourd'hui (zone rouge)
+    - Tâches en cours
+    - Prochaines tâches à venir (3 jours)
+    - Temps total estimé pour aujourd'hui
+
+4.2 Statistiques de la semaine
+    - Nombre de tâches complétées
+    - Nombre de tâches créées
+    - Répartition par catégorie (graphique simple)
+    - Répartition par zone Eisenhower (graphique simple)
+
+4.3 Widgets
+    - Heure et date actuelles
+    - Progression de la journée (% de tâches faites)
+    - Tâche la plus urgente mise en avant
+
+Résultat attendu : En ouvrant l'app, on voit immédiatement l'essentiel.
+
+
+--------------------------------------------------------------------------------
+ÉTAPE 5 — PAGE CORBEILLE
+--------------------------------------------------------------------------------
+
+Objectif : Gérer les tâches supprimées.
+
+5.1 Affichage
+    - Liste de toutes les tâches supprimées
+    - Date de suppression
+    - Zone d'origine
+
+5.2 Actions
+    - Restaurer une tâche (retour dans sa zone d'origine)
+    - Supprimer définitivement
+    - Vider la corbeille entière
+
+Résultat attendu : Les tâches supprimées sont récupérables.
+
+
+--------------------------------------------------------------------------------
+ÉTAPE 6 — AMÉLIORATIONS (plus tard)
+--------------------------------------------------------------------------------
+
+    6.1 Sauvegarde automatique (sans bouton)
+    6.2 Notifications et rappels
+    6.3 Application mobile
+    6.4 Export PDF / calendrier .ics
+    6.5 Intégration Google Calendar
+    6.6 Multi-utilisateurs avec connexion
+
+
+--------------------------------------------------------------------------------
+ORDRE DE PRIORITÉ
+--------------------------------------------------------------------------------
+
+    ✅ Étape 1 — Fondations (base de données + API)
+    ✅ Étape 2 — Matrice Eisenhower (cœur de l'app)
+    ✅ Étape 3 — Calendrier
+    ✅ Étape 4 — Tableau de bord
+    ✅ Étape 5 — Corbeille
+    🔜 Étape 6 — Améliorations futures
+
+================================================================================

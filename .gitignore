@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+
+# Base de données
+*.db
+*.sqlite
+*.sqlite3
+
+# Variables d'environnement
+.env
+.env.*
+
+# Flask
+instance/
+.flask_session/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

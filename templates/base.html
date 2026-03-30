@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titre %}EisenAgenda{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ===== BARRE DE NAVIGATION ===== -->
+<nav class="navbar">
+    <a href="/" class="navbar-logo">📋 EisenAgenda</a>
+    <ul class="navbar-liens">
+        <li>
+            <a href="/" class="{% if request.endpoint == 'pages.page_matrice' %}actif{% endif %}">
+                🗂 <span class="label">Matrice</span>
+            </a>
+        </li>
+        <li>
+            <a href="/calendar" class="{% if request.endpoint == 'pages.page_calendrier' %}actif{% endif %}">
+                📅 <span class="label">Calendrier</span>
+            </a>
+        </li>
+        <li>
+            <a href="/dashboard" class="{% if request.endpoint == 'pages.page_tableau_de_bord' %}actif{% endif %}">
+                📊 <span class="label">Tableau de bord</span>
+            </a>
+        </li>
+        <li>
+            <a href="/trash" class="{% if request.endpoint == 'pages.page_corbeille' %}actif{% endif %}">
+                🗑 <span class="label">Corbeille</span>
+            </a>
+        </li>
+    </ul>
+    <a href="#" class="navbar-liens btn-nouvelle-tache" onclick="ouvrirModal(); return false;">
+        + Nouvelle tâche
+    </a>
+</nav>
+
+<!-- ===== CONTENU DE LA PAGE ===== -->
+<main class="contenu">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ===== MODAL FORMULAIRE DE TÂCHE ===== -->
+<div class="modal-overlay" id="modal-overlay" onclick="fermerModalSiExterieur(event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titre-label">
+        <button class="modal-fermer" onclick="fermerModal()" aria-label="Fermer">×</button>
+        <h2 class="modal-titre" id="modal-titre-label">Nouvelle tâche</h2>
+
+        <div id="modal-erreurs" class="alerte alerte-erreur" style="display:none;"></div>
+
+        <form id="form-tache" onsubmit="sauvegarderTache(event)">
+            <input type="hidden" id="tache-id" value="">
+
+            <div class="form-groupe">
+                <label class="form-label" for="tache-titre">
+                    Titre <span class="requis">*</span>
+                </label>
+                <input type="text" id="tache-titre" class="form-input"
+                       placeholder="Ex : Préparer la réunion client" required maxlength="200">
+            </div>
+
+            <div class="form-groupe">
+                <label class="form-label" for="tache-description">Description</label>
+                <textarea id="tache-description" class="form-textarea"
+                          placeholder="Détails optionnels..."></textarea>
+            </div>
+
+            <div class="form-grille-2">
+                <div class="form-groupe">
+                    <label class="form-label" for="tache-date">Date d'échéance</label>
+                    <input type="date" id="tache-date" class="form-input">
+                </div>
+                <div class="form-groupe">
+                    <label class="form-label" for="tache-duree">Durée estimée (min)</label>
+                    <input type="number" id="tache-duree" class="form-input"
+                           placeholder="Ex : 30" min="0" step="5">
+                </div>
+            </div>
+
+            <div class="form-grille-2">
+                <div class="form-groupe">
+                    <label class="form-label" for="tache-categorie">Catégorie</label>
+                    <select id="tache-categorie" class="form-select">
+                        <option value="Travail">💼 Travail</option>
+                        <option value="Personnel">🏠 Personnel</option>
+                        <option value="Santé">💚 Santé</option>
+                        <option value="Autre" selected>📌 Autre</option>
+                    </select>
+                </div>
+                <div class="form-groupe">
+                    <label class="form-label" for="tache-recurrence">Récurrence</label>
+                    <select id="tache-recurrence" class="form-select">
+                        <option value="Une fois" selected>Une fois</option>
+                        <option value="Quotidien">Quotidien</option>
+                        <option value="Hebdomadaire">Hebdomadaire</option>
+                        <option value="Mensuel">Mensuel</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-groupe">
+                <label class="form-label" for="tache-zone">Zone Eisenhower</label>
+                <select id="tache-zone" class="form-select">
+                    <option value="urgent_important">🔴 Urgent + Important</option>
+                    <option value="important">🔵 Important (planifier)</option>
+                    <option value="urgent">🟡 Urgent (déléguer)</option>
+                    <option value="neutre">⚫ Pas urgent/important</option>
+                    <option value="en_cours">⏳ En cours</option>
+                    <option value="fait">✅ Fait</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondaire" onclick="fermerModal()">
+                    Annuler
+                </button>
+                <button type="submit" class="btn btn-primaire" id="btn-sauvegarder">
+                    💾 Sauvegarder
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===== SCRIPTS DE BASE ===== -->
+<script>
+// ===== GESTION DU MODAL =====
+
+let tacheEnCoursId = null; // ID de la tâche en cours de modification
+
+function ouvrirModal(tache = null, zonePrecochee = null) {
+    const overlay = document.getElementById('modal-overlay');
+    const titreModal = document.getElementById('modal-titre-label');
+    const erreurs = document.getElementById('modal-erreurs');
+
+    // Réinitialiser le formulaire
+    document.getElementById('form-tache').reset();
+    erreurs.style.display = 'none';
+    erreurs.textContent = '';
+
+    if (tache) {
+        // Mode modification
+        tacheEnCoursId = tache.id;
+        titreModal.textContent = 'Modifier la tâche';
+        document.getElementById('tache-id').value = tache.id;
+        document.getElementById('tache-titre').value = tache.titre || '';
+        document.getElementById('tache-description').value = tache.description || '';
+        document.getElementById('tache-date').value = tache.date_echeance || '';
+        document.getElementById('tache-duree').value = tache.duree_estimee || '';
+        document.getElementById('tache-categorie').value = tache.categorie || 'Autre';
+        document.getElementById('tache-recurrence').value = tache.recurrence || 'Une fois';
+        document.getElementById('tache-zone').value = tache.zone || 'urgent_important';
+    } else {
+        // Mode création
+        tacheEnCoursId = null;
+        titreModal.textContent = 'Nouvelle tâche';
+        document.getElementById('tache-id').value = '';
+        if (zonePrecochee) {
+            document.getElementById('tache-zone').value = zonePrecochee;
+        }
+    }
+
+    overlay.classList.add('actif');
+    document.getElementById('tache-titre').focus();
+}
+
+function fermerModal() {
+    document.getElementById('modal-overlay').classList.remove('actif');
+    tacheEnCoursId = null;
+}
+
+function fermerModalSiExterieur(event) {
+    if (event.target === document.getElementById('modal-overlay')) {
+        fermerModal();
+    }
+}
+
+// Fermer avec Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') fermerModal();
+});
+
+async function sauvegarderTache(event) {
+    event.preventDefault();
+
+    const erreurs = document.getElementById('modal-erreurs');
+    erreurs.style.display = 'none';
+
+    const donnees = {
+        titre: document.getElementById('tache-titre').value.trim(),
+        description: document.getElementById('tache-description').value.trim() || null,
+        date_echeance: document.getElementById('tache-date').value || null,
+        duree_estimee: document.getElementById('tache-duree').value
+            ? parseInt(document.getElementById('tache-duree').value)
+            : null,
+        categorie: document.getElementById('tache-categorie').value,
+        recurrence: document.getElementById('tache-recurrence').value,
+        zone: document.getElementById('tache-zone').value,
+    };
+
+    const estModification = tacheEnCoursId !== null;
+    const url = estModification ? `/api/tasks/${tacheEnCoursId}` : '/api/tasks';
+    const methode = estModification ? 'PUT' : 'POST';
+
+    try {
+        const reponse = await fetch(url, {
+            method: methode,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(donnees),
+        });
+
+        const resultat = await reponse.json();
+
+        if (!reponse.ok) {
+            const msgs = resultat.erreurs || [resultat.erreur || 'Erreur inconnue.'];
+            erreurs.innerHTML = msgs.join('<br>');
+            erreurs.style.display = 'block';
+            return;
+        }
+
+        fermerModal();
+
+        // Rafraîchir l'affichage si la fonction existe (définie dans chaque page JS)
+        if (typeof apresModificationTache === 'function') {
+            apresModificationTache(resultat, estModification);
+        } else {
+            window.location.reload();
+        }
+
+    } catch (err) {
+        erreurs.textContent = 'Erreur de connexion au serveur.';
+        erreurs.style.display = 'block';
+    }
+}
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

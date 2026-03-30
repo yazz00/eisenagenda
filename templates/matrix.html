@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block titre %}Matrice Eisenhower — EisenAgenda{% endblock %}
+
+{% block content %}
+<h1 class="titre-page">🗂 Matrice Eisenhower</h1>
+
+<!-- Grille 4 quadrants -->
+<div class="matrice-grille">
+
+    <!-- 🔴 Urgent + Important -->
+    <div class="zone" data-zone="urgent_important"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="deposerTache(event, this)">
+        <div class="zone-titre">🔴 Urgent + Important</div>
+        <div class="zone-taches" id="zone-urgent_important"></div>
+    </div>
+
+    <!-- 🔵 Important (planifier) -->
+    <div class="zone" data-zone="important"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="deposerTache(event, this)">
+        <div class="zone-titre">🔵 Important — Planifier</div>
+        <div class="zone-taches" id="zone-important"></div>
+    </div>
+
+    <!-- 🟡 Urgent (déléguer) -->
+    <div class="zone" data-zone="urgent"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="deposerTache(event, this)">
+        <div class="zone-titre">🟡 Urgent — Déléguer</div>
+        <div class="zone-taches" id="zone-urgent"></div>
+    </div>
+
+    <!-- ⚫ Pas urgent / pas important -->
+    <div class="zone" data-zone="neutre"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="deposerTache(event, this)">
+        <div class="zone-titre">⚫ Pas urgent / Pas important</div>
+        <div class="zone-taches" id="zone-neutre"></div>
+    </div>
+
+</div>
+
+<!-- Colonnes En cours + Fait -->
+<div class="colonnes-extra">
+
+    <!-- ⏳ En cours -->
+    <div class="zone" data-zone="en_cours"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="deposerTache(event, this)">
+        <div class="zone-titre">⏳ En cours</div>
+        <div class="zone-taches" id="zone-en_cours"></div>
+    </div>
+
+    <!-- ✅ Fait -->
+    <div class="zone" data-zone="fait"
+         ondragover="event.preventDefault(); this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="deposerTache(event, this)">
+        <div class="zone-titre">✅ Fait</div>
+        <div class="zone-taches" id="zone-fait"></div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Données injectées par Flask
+const tachesInitiales = {{ taches_json | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/matrix.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block titre %}Tableau de bord — EisenAgenda{% endblock %}
+
+{% block content %}
+<h1 class="titre-page">📊 Tableau de bord</h1>
+
+<!-- Tâche la plus urgente mise en avant -->
+{% if tache_urgente %}
+<div class="tache-urgente-mise-en-avant">
+    <div class="label-urgent">🔴 Tâche la plus urgente</div>
+    <div class="titre-urgent">{{ tache_urgente.titre }}</div>
+    {% if tache_urgente.date_echeance %}
+    <div style="font-size:0.82rem; color:#9f1239; margin-top:0.25rem;">
+        Échéance : {{ tache_urgente.date_echeance.strftime('%d/%m/%Y') }}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Tuiles de résumé -->
+<div class="dashboard-grille">
+
+    <!-- Horloge -->
+    <div class="tuile">
+        <div class="tuile-icone">🕐</div>
+        <div class="horloge" id="horloge">--:--:--</div>
+        <div class="horloge-date" id="horloge-date">{{ aujourd_hui.strftime('%A %d %B %Y') }}</div>
+    </div>
+
+    <!-- Tâches urgentes aujourd'hui -->
+    <div class="tuile tuile-rouge">
+        <div class="tuile-icone">🔴</div>
+        <div class="tuile-nombre">{{ urgentes_auj | length }}</div>
+        <div class="tuile-label">Urgentes aujourd'hui</div>
+    </div>
+
+    <!-- En cours -->
+    <div class="tuile tuile-orange">
+        <div class="tuile-icone">⏳</div>
+        <div class="tuile-nombre">{{ en_cours | length }}</div>
+        <div class="tuile-label">En cours</div>
+    </div>
+
+    <!-- À venir (3 jours) -->
+    <div class="tuile tuile-bleu">
+        <div class="tuile-icone">📅</div>
+        <div class="tuile-nombre">{{ a_venir | length }}</div>
+        <div class="tuile-label">À venir (3 jours)</div>
+    </div>
+
+    <!-- Temps estimé aujourd'hui -->
+    <div class="tuile tuile-vert">
+        <div class="tuile-icone">⏱</div>
+        <div class="tuile-nombre">
+            {% if temps_total >= 60 %}
+                {{ (temps_total // 60) }}h{{ '%02d' % (temps_total % 60) }}
+            {% else %}
+                {{ temps_total }}min
+            {% endif %}
+        </div>
+        <div class="tuile-label">Temps estimé aujourd'hui</div>
+    </div>
+
+    <!-- Complétées cette semaine -->
+    <div class="tuile tuile-vert">
+        <div class="tuile-icone">✅</div>
+        <div class="tuile-nombre">{{ taches_completees_semaine }}</div>
+        <div class="tuile-label">Complétées cette semaine</div>
+    </div>
+
+    <!-- Créées cette semaine -->
+    <div class="tuile">
+        <div class="tuile-icone">➕</div>
+        <div class="tuile-nombre">{{ taches_creees_semaine }}</div>
+        <div class="tuile-label">Créées cette semaine</div>
+    </div>
+
+    <!-- Progression du jour -->
+    <div class="tuile">
+        <div class="tuile-icone">📈</div>
+        <div class="tuile-nombre">{{ progression_jour }}%</div>
+        <div class="tuile-label">Progression du jour</div>
+        <div class="barre-progression">
+            <div class="barre-progression-remplissage" style="width: {{ progression_jour }}%"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Statistiques détaillées -->
+<div class="section-stats">
+
+    <!-- Répartition par catégorie -->
+    <div class="stats-bloc">
+        <div class="stats-titre">Répartition par catégorie</div>
+        {% for cat, data in repartition_categories.items() %}
+        <div class="stat-ligne">
+            <span class="stat-ligne-label">
+                {% if cat == 'Travail' %}💼{% elif cat == 'Personnel' %}🏠{% elif cat == 'Santé' %}💚{% else %}📌{% endif %}
+                {{ cat }}
+            </span>
+            <div class="stat-barre-conteneur">
+                <div class="stat-barre" style="width: {{ data.pourcentage }}%"></div>
+            </div>
+            <span class="stat-nombre">{{ data.nombre }}</span>
+        </div>
+        {% endfor %}
+        {% if total_actives == 0 %}
+        <p style="color: var(--texte-secondaire); font-size: 0.85rem;">Aucune tâche active.</p>
+        {% endif %}
+    </div>
+
+    <!-- Répartition par zone -->
+    <div class="stats-bloc">
+        <div class="stats-titre">Répartition par zone Eisenhower</div>
+        {% for zone_key, data in repartition_zones.items() %}
+        <div class="stat-ligne">
+            <span class="stat-ligne-label" style="min-width:130px;">{{ data.label }}</span>
+            <div class="stat-barre-conteneur">
+                <div class="stat-barre" style="width: {{ data.pourcentage }}%;
+                    {% if zone_key == 'urgent_important' %}background: #ef4444;
+                    {% elif zone_key == 'important' %}background: #3b82f6;
+                    {% elif zone_key == 'urgent' %}background: #f59e0b;
+                    {% elif zone_key == 'neutre' %}background: #6b7280;
+                    {% elif zone_key == 'en_cours' %}background: #f97316;
+                    {% elif zone_key == 'fait' %}background: #22c55e;
+                    {% endif %}"></div>
+            </div>
+            <span class="stat-nombre">{{ data.nombre }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- Tâches urgentes aujourd'hui -->
+{% if urgentes_auj %}
+<div class="stats-bloc" style="margin-top:1rem;">
+    <div class="stats-titre">🔴 Tâches urgentes aujourd'hui</div>
+    <ul class="liste-taches-auj">
+        {% for tache in urgentes_auj %}
+        <li>
+            <span class="point-zone point-urgent-important"></span>
+            <span>{{ tache.titre }}</span>
+            {% if tache.duree_estimee %}
+            <span style="margin-left:auto; font-size:0.78rem; color:var(--texte-secondaire);">
+                {{ tache.duree_estimee }} min
+            </span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Tâches à venir -->
+{% if a_venir %}
+<div class="stats-bloc" style="margin-top:1rem;">
+    <div class="stats-titre">📅 À venir dans les 3 prochains jours</div>
+    <ul class="liste-taches-auj">
+        {% for tache in a_venir %}
+        <li>
+            <span class="point-zone point-{{ tache.zone | replace('_', '-') }}"></span>
+            <span>{{ tache.titre }}</span>
+            {% if tache.date_echeance %}
+            <span style="margin-left:auto; font-size:0.78rem; color:var(--texte-secondaire);">
+                {{ tache.date_echeance.strftime('%d/%m') }}
+            </span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Mise à jour de l'horloge en temps réel
+function mettreAJourHorloge() {
+    const maintenant = new Date();
+    const heures = String(maintenant.getHours()).padStart(2, '0');
+    const minutes = String(maintenant.getMinutes()).padStart(2, '0');
+    const secondes = String(maintenant.getSeconds()).padStart(2, '0');
+    const horloge = document.getElementById('horloge');
+    if (horloge) {
+        horloge.textContent = `${heures}:${minutes}:${secondes}`;
+    }
+}
+
+mettreAJourHorloge();
+setInterval(mettreAJourHorloge, 1000);
+</script>
+{% endblock %}

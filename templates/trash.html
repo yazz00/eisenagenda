@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block titre %}Corbeille — EisenAgenda{% endblock %}
+
+{% block content %}
+
+<div class="corbeille-entete">
+    <h1 class="titre-page" style="margin-bottom:0;">🗑 Corbeille</h1>
+    {% if taches %}
+    <button class="btn btn-danger" onclick="viderCorbeille()">
+        🗑 Vider la corbeille ({{ taches | length }})
+    </button>
+    {% endif %}
+</div>
+
+{% if taches %}
+
+<div class="liste-corbeille" id="liste-corbeille">
+    {% for tache in taches %}
+    <div class="carte-corbeille" id="carte-{{ tache.id }}">
+        <div class="carte-corbeille-info">
+            <div class="carte-corbeille-titre">{{ tache.titre }}</div>
+            <div class="carte-corbeille-meta">
+                <span>
+                    Zone d'origine :
+                    {% if tache.zone_precedente == 'urgent_important' %}🔴 Urgent + Important
+                    {% elif tache.zone_precedente == 'important' %}🔵 Important
+                    {% elif tache.zone_precedente == 'urgent' %}🟡 Urgent
+                    {% elif tache.zone_precedente == 'neutre' %}⚫ Neutre
+                    {% elif tache.zone_precedente == 'en_cours' %}⏳ En cours
+                    {% elif tache.zone_precedente == 'fait' %}✅ Fait
+                    {% else %}—
+                    {% endif %}
+                </span>
+                <span>Supprimée le {{ tache.date_modification.strftime('%d/%m/%Y à %H:%M') }}</span>
+                {% if tache.categorie %}
+                <span>{{ tache.categorie }}</span>
+                {% endif %}
+            </div>
+            {% if tache.description %}
+            <div style="font-size:0.82rem; color:var(--texte-secondaire); margin-top:0.25rem;">
+                {{ tache.description[:120] }}{% if tache.description | length > 120 %}...{% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="carte-corbeille-actions">
+            <button class="btn btn-secondaire" onclick="restaurerTache({{ tache.id }})">
+                ↩ Restaurer
+            </button>
+            <button class="btn btn-danger" onclick="supprimerDefinitivement({{ tache.id }})">
+                🗑 Supprimer
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+
+<div class="vide-message">
+    <div class="icone">🗑</div>
+    <p>La corbeille est vide.</p>
+    <p style="margin-top:0.5rem; font-size:0.85rem;">
+        Les tâches supprimées apparaissent ici avant d'être définitivement effacées.
+    </p>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function restaurerTache(id) {
+    try {
+        const reponse = await fetch(`/api/tasks/${id}/restaurer`, { method: 'POST' });
+        if (reponse.ok) {
+            // Supprimer la carte de l'interface
+            const carte = document.getElementById(`carte-${id}`);
+            if (carte) {
+                carte.style.transition = 'opacity 0.3s';
+                carte.style.opacity = '0';
+                setTimeout(() => {
+                    carte.remove();
+                    verifierCorbeille();
+                }, 300);
+            }
+        } else {
+            const data = await reponse.json();
+            alert(data.erreur || 'Erreur lors de la restauration.');
+        }
+    } catch (err) {
+        alert('Erreur de connexion au serveur.');
+    }
+}
+
+async function supprimerDefinitivement(id) {
+    if (!confirm('Supprimer définitivement cette tâche ? Cette action est irréversible.')) return;
+
+    try {
+        const reponse = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+        if (reponse.ok) {
+            const carte = document.getElementById(`carte-${id}`);
+            if (carte) {
+                carte.style.transition = 'opacity 0.3s';
+                carte.style.opacity = '0';
+                setTimeout(() => {
+                    carte.remove();
+                    verifierCorbeille();
+                }, 300);
+            }
+        } else {
+            const data = await reponse.json();
+            alert(data.erreur || 'Erreur lors de la suppression.');
+        }
+    } catch (err) {
+        alert('Erreur de connexion au serveur.');
+    }
+}
+
+async function viderCorbeille() {
+    if (!confirm('Vider toute la corbeille ? Cette action est irréversible.')) return;
+
+    try {
+        const reponse = await fetch('/api/taches/vider-corbeille', { method: 'POST' });
+        if (reponse.ok) {
+            window.location.reload();
+        } else {
+            alert('Erreur lors du vidage de la corbeille.');
+        }
+    } catch (err) {
+        alert('Erreur de connexion au serveur.');
+    }
+}
+
+function verifierCorbeille() {
+    // Si plus aucune carte, afficher le message vide
+    const liste = document.getElementById('liste-corbeille');
+    if (liste && liste.children.length === 0) {
+        window.location.reload();
+    }
+}
+</script>
+{% endblock %}
