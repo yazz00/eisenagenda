@@ -114,7 +114,7 @@ def creer_taches_lot():
             recurrence=donnees.get('recurrence', 'Une fois'),
             zone=donnees.get('zone', 'urgent_important'),
             heure_debut=donnees.get('heure_debut') or None,
-            auto_regenerer=False,
+            auto_regenerer=bool(donnees.get('auto_regenerer', False)),
         )
         db.session.add(t)
         taches_creees.append(t)

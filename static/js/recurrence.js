@@ -216,34 +216,40 @@ function creerCarteGroupe(groupe) {
 function mettreAJourChampsDates() {
     const recurrence  = document.getElementById('tache-recurrence').value;
     const autoRegen   = document.getElementById('tache-auto-regenerer').checked;
+    const groupeAutoRegen    = document.getElementById('groupe-auto-regenerer');
     const groupeDateFin      = document.getElementById('groupe-date-fin');
     const groupeJoursSemaine = document.getElementById('groupe-jours-semaine');
     const groupeJoursMois    = document.getElementById('groupe-jours-mois');
 
+    // Auto-régénération : visible pour Quotidien et Hebdomadaire uniquement
+    const autoRegenVisible = recurrence === 'Quotidien' || recurrence === 'Hebdomadaire';
+    groupeAutoRegen.style.display = autoRegenVisible ? 'block' : 'none';
+
     // Récurrence classique = type ≠ "Une fois" ET pas d'auto-régénération
     const recurrenceClassique = recurrence !== 'Une fois' && !autoRegen;
 
-    // Date de fin : visible en mode classique
+    // Date de fin : visible en mode classique (pas d'auto-regen)
     groupeDateFin.style.display = recurrenceClassique ? 'block' : 'none';
 
-    // Sélecteur de jours de la semaine : Hebdomadaire classique uniquement
-    groupeJoursSemaine.style.display =
-        (recurrence === 'Hebdomadaire' && recurrenceClassique) ? 'block' : 'none';
+    // Sélecteur de jours de la semaine : pour TOUT mode Hebdomadaire
+    groupeJoursSemaine.style.display = recurrence === 'Hebdomadaire' ? 'block' : 'none';
 
     // Sélecteur de jours du mois : Mensuel classique uniquement
     groupeJoursMois.style.display =
         (recurrence === 'Mensuel' && recurrenceClassique) ? 'block' : 'none';
 
     // Ajuster le submit selon le mode
-    if (!recurrenceClassique) {
-        document.getElementById('form-tache').onsubmit = sauvegarderTache;
-    } else if (recurrence === 'Hebdomadaire') {
-        document.getElementById('form-tache').onsubmit = sauvegarderRecurrenceHebdo;
-    } else if (recurrence === 'Mensuel') {
+    if (recurrence === 'Hebdomadaire') {
+        // Auto-regen ou classique : toujours passer par le handler Hebdo
+        document.getElementById('form-tache').onsubmit =
+            autoRegen ? sauvegarderHebdoAutoRegen : sauvegarderRecurrenceHebdo;
+    } else if (recurrence === 'Mensuel' && recurrenceClassique) {
         document.getElementById('form-tache').onsubmit = sauvegarderRecurrenceMensuel;
-    } else {
-        // Quotidien classique
+    } else if (recurrence === 'Quotidien' && recurrenceClassique) {
         document.getElementById('form-tache').onsubmit = sauvegarderRecurrenceClassique;
+    } else {
+        // Quotidien auto-regen, Une fois, ou Mensuel auto-regen
+        document.getElementById('form-tache').onsubmit = sauvegarderTache;
     }
 }
 
@@ -258,6 +264,7 @@ function ouvrirModalRecurrence(typeRecurrence) {
         document.getElementById('groupe-type-recurrence').style.display = 'none';
         document.getElementById('tache-recurrence').value = typeRecurrence;
         document.getElementById('tache-auto-regenerer').checked = false;
+        // mettreAJourChampsDates affichera groupe-auto-regenerer si Quotidien/Hebdo
         mettreAJourChampsDates();
     }, 10);
 }
@@ -585,6 +592,100 @@ async function sauvegarderRecurrenceClassique(event) {
         // Ajouter chaque tâche créée dans la liste correspondante
         res.forEach(t => apresModificationTache(t, false));
         alert(`✅ ${res.length} tâche(s) créée(s) dans le planning.`);
+    } catch {
+        erreurs.textContent = 'Erreur de connexion.';
+        erreurs.style.display = 'block';
+    }
+}
+
+// ============================================================
+// SAUVEGARDE HEBDOMADAIRE AVEC AUTO-RÉGÉNÉRATION (multi-jours)
+// ============================================================
+
+async function sauvegarderHebdoAutoRegen(event) {
+    event.preventDefault();
+    const erreurs = document.getElementById('modal-erreurs');
+    erreurs.style.display = 'none';
+
+    const joursSelectionnes = [...document.querySelectorAll('.jour-picker-btn.selectionne')]
+        .map(btn => parseInt(btn.dataset.index)); // 0=Lun … 6=Dim
+
+    const dateDebut = document.getElementById('tache-date').value;
+    if (!dateDebut) {
+        erreurs.textContent = 'La date d\'échéance (premier jour) est obligatoire.';
+        erreurs.style.display = 'block';
+        return;
+    }
+
+    const donnees = {
+        titre:        document.getElementById('tache-titre').value.trim(),
+        description:  document.getElementById('tache-description').value.trim() || null,
+        duree_estimee: document.getElementById('tache-duree').value
+            ? parseInt(document.getElementById('tache-duree').value) : null,
+        categorie:    document.getElementById('tache-categorie').value,
+        zone:         document.getElementById('tache-zone').value,
+        heure_debut:  document.getElementById('tache-heure-debut').value || null,
+        recurrence:   'Hebdomadaire',
+        auto_regenerer: true,
+    };
+
+    if (!donnees.titre) {
+        erreurs.textContent = 'Le titre est obligatoire.';
+        erreurs.style.display = 'block';
+        return;
+    }
+
+    // Si aucun jour sélectionné → une seule tâche pour la date donnée
+    if (joursSelectionnes.length === 0) {
+        try {
+            const rep = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...donnees, date_echeance: dateDebut }),
+            });
+            const res = await rep.json();
+            if (!rep.ok) {
+                erreurs.innerHTML = (res.erreurs || [res.erreur || 'Erreur']).join('<br>');
+                erreurs.style.display = 'block';
+                return;
+            }
+            fermerModal();
+            apresModificationTache(res, false);
+        } catch {
+            erreurs.textContent = 'Erreur de connexion.';
+            erreurs.style.display = 'block';
+        }
+        return;
+    }
+
+    // Plusieurs jours : calculer la première occurrence de chaque jour >= dateDebut
+    const debut = new Date(dateDebut + 'T00:00:00');
+    const jourDebutSemaine = (debut.getDay() + 6) % 7; // 0=Lun
+
+    const dates = joursSelectionnes.map(jourCible => {
+        let decalage = (jourCible - jourDebutSemaine + 7) % 7;
+        const d = new Date(debut);
+        d.setDate(d.getDate() + decalage);
+        return formaterDateISO(d);
+    });
+
+    try {
+        const rep = await fetch('/api/tasks/lot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...donnees, dates }),
+        });
+        const res = await rep.json();
+        if (!rep.ok) {
+            erreurs.innerHTML = (res.erreurs || [res.erreur || 'Erreur']).join('<br>');
+            erreurs.style.display = 'block';
+            return;
+        }
+        document.querySelectorAll('.jour-picker-btn.selectionne')
+            .forEach(b => b.classList.remove('selectionne'));
+        fermerModal();
+        res.forEach(t => apresModificationTache(t, false));
+        alert(`✅ ${res.length} tâche(s) créée(s) avec auto-régénération.`);
     } catch {
         erreurs.textContent = 'Erreur de connexion.';
         erreurs.style.display = 'block';

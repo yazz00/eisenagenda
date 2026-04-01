@@ -122,26 +122,28 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
             <!-- Champs récurrence — affichés uniquement sur la page Récurrence -->
             <div id="groupe-recurrence" style="display:none;">
 
-                <!-- Type de récurrence + auto-régénération (masqué si section connue) -->
+                <!-- Sélecteur de type (masqué si section connue) -->
                 <div id="groupe-type-recurrence">
-                    <div class="form-grille-2">
-                        <div class="form-groupe">
-                            <label class="form-label" for="tache-recurrence">Récurrence</label>
-                            <select id="tache-recurrence" class="form-select"
-                                    onchange="if(typeof mettreAJourChampsDates==='function') mettreAJourChampsDates()">
-                                <option value="Une fois">Une fois</option>
-                                <option value="Quotidien">Quotidien</option>
-                                <option value="Hebdomadaire">Hebdomadaire</option>
-                                <option value="Mensuel">Mensuel</option>
-                            </select>
-                        </div>
-                        <div class="form-groupe" style="display:flex; align-items:flex-end; padding-bottom:0.25rem;">
-                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.88rem; color:var(--texte-secondaire);">
-                                <input type="checkbox" id="tache-auto-regenerer"
-                                       onchange="if(typeof mettreAJourChampsDates==='function') mettreAJourChampsDates()">
-                                🔄 Recréer quand "Fait"
-                            </label>
-                        </div>
+                    <div class="form-groupe">
+                        <label class="form-label" for="tache-recurrence">Récurrence</label>
+                        <select id="tache-recurrence" class="form-select"
+                                onchange="if(typeof mettreAJourChampsDates==='function') mettreAJourChampsDates()">
+                            <option value="Une fois">Une fois</option>
+                            <option value="Quotidien">Quotidien</option>
+                            <option value="Hebdomadaire">Hebdomadaire</option>
+                            <option value="Mensuel">Mensuel</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Auto-régénération (visible pour Quotidien et Hebdomadaire) -->
+                <div id="groupe-auto-regenerer" style="display:none;">
+                    <div class="form-groupe" style="display:flex; align-items:center; padding-bottom:0.25rem;">
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.88rem; color:var(--texte-secondaire);">
+                            <input type="checkbox" id="tache-auto-regenerer"
+                                   onchange="if(typeof mettreAJourChampsDates==='function') mettreAJourChampsDates()">
+                            🔄 Recréer automatiquement quand marquée "Fait"
+                        </label>
                     </div>
                 </div>
 
@@ -239,6 +241,7 @@ function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) 
 
     // Réinitialiser la visibilité des champs récurrence
     document.getElementById('groupe-type-recurrence').style.display = '';
+    document.getElementById('groupe-auto-regenerer').style.display = 'none';
     document.getElementById('groupe-date-fin').style.display = 'none';
     document.getElementById('groupe-jours-semaine').style.display = 'none';
     document.getElementById('groupe-jours-mois').style.display = 'none';
