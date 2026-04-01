@@ -23,7 +23,8 @@ let dateActuelle = new Date();
 // ===== INITIALISATION =====
 
 document.addEventListener('DOMContentLoaded', () => {
-    rendreCalerendrier();
+    // changerVue initialise aussi la visibilité du bouton ⚙ Pauses et du champ heure-debut
+    changerVue('jour');
 });
 
 // ===== NAVIGATION =====
@@ -52,9 +53,6 @@ function changerVue(nouvelle) {
     // Bouton config visible uniquement en jour/semaine
     document.getElementById('btn-config-journee').style.display =
         nouvelle === 'mois' ? 'none' : '';
-    // Champ heure dans le modal : visible en jour/semaine
-    document.getElementById('groupe-heure-debut').style.display =
-        nouvelle === 'mois' ? 'none' : 'block';
     rendreCalerendrier();
 }
 

@@ -34,6 +34,7 @@ class Task(db.Model):
     zone = db.Column(db.String(50), nullable=False, default='urgent_important')
     zone_precedente = db.Column(db.String(50), nullable=True)  # pour restaurer depuis la corbeille
     heure_debut = db.Column(db.String(5), nullable=True)  # "HH:MM" — positionnement sur la timeline
+    auto_regenerer = db.Column(db.Boolean, nullable=False, default=False)  # recrée l'occurrence suivante quand "fait"
     date_creation = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     date_modification = db.Column(
         db.DateTime,
@@ -55,6 +56,7 @@ class Task(db.Model):
             'zone': self.zone,
             'zone_precedente': self.zone_precedente,
             'heure_debut': self.heure_debut,
+            'auto_regenerer': self.auto_regenerer,
             'date_creation': self.date_creation.isoformat() if self.date_creation else None,
             'date_modification': self.date_modification.isoformat() if self.date_modification else None,
         }

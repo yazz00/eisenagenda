@@ -19,6 +19,9 @@
         <a href="/calendar" class="sidebar-lien {% if request.endpoint in ('pages.page_calendrier', 'pages.page_ma_journee') %}actif{% endif %}" title="Planning">
             <span class="sidebar-icone">📅</span><span class="sidebar-texte">Planning</span>
         </a>
+        <a href="/recurrence" class="sidebar-lien {% if request.endpoint == 'pages.page_recurrence' %}actif{% endif %}" title="Récurrence">
+            <span class="sidebar-icone">🔁</span><span class="sidebar-texte">Récurrence</span>
+        </a>
         <a href="/matrix" class="sidebar-lien {% if request.endpoint == 'pages.page_matrice' %}actif{% endif %}" title="Matrice">
             <span class="sidebar-icone">🗂</span><span class="sidebar-texte">Matrice</span>
         </a>
@@ -110,10 +113,76 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
                 </div>
             </div>
 
-            <!-- Champ heure de début — affiché uniquement sur la page Ma journée -->
-            <div class="form-groupe" id="groupe-heure-debut" style="display:none;">
+            <!-- Heure de début — toujours disponible -->
+            <div class="form-groupe" id="groupe-heure-debut">
                 <label class="form-label" for="tache-heure-debut">Heure de début</label>
                 <input type="time" id="tache-heure-debut" class="form-input">
+            </div>
+
+            <!-- Champs récurrence — affichés uniquement sur la page Récurrence -->
+            <div id="groupe-recurrence" style="display:none;">
+
+                <!-- Type de récurrence + auto-régénération (masqué si section connue) -->
+                <div id="groupe-type-recurrence">
+                    <div class="form-grille-2">
+                        <div class="form-groupe">
+                            <label class="form-label" for="tache-recurrence">Récurrence</label>
+                            <select id="tache-recurrence" class="form-select"
+                                    onchange="if(typeof mettreAJourChampsDates==='function') mettreAJourChampsDates()">
+                                <option value="Une fois">Une fois</option>
+                                <option value="Quotidien">Quotidien</option>
+                                <option value="Hebdomadaire">Hebdomadaire</option>
+                                <option value="Mensuel">Mensuel</option>
+                            </select>
+                        </div>
+                        <div class="form-groupe" style="display:flex; align-items:flex-end; padding-bottom:0.25rem;">
+                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.88rem; color:var(--texte-secondaire);">
+                                <input type="checkbox" id="tache-auto-regenerer"
+                                       onchange="if(typeof mettreAJourChampsDates==='function') mettreAJourChampsDates()">
+                                🔄 Recréer quand "Fait"
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date de fin — mode classique (sans auto-régénération) -->
+                <div id="groupe-date-fin" style="display:none;">
+                    <div class="form-groupe">
+                        <label class="form-label" for="tache-date-fin">
+                            Répéter jusqu'au <span class="requis">*</span>
+                        </label>
+                        <input type="date" id="tache-date-fin" class="form-input">
+                    </div>
+                </div>
+
+                <!-- Sélecteur jours de la semaine (Hebdomadaire classique) -->
+                <div id="groupe-jours-semaine" style="display:none;">
+                    <div class="form-groupe">
+                        <label class="form-label">Jours à répéter</label>
+                        <div class="jours-semaine-picker">
+                            <button type="button" class="jour-picker-btn" data-index="0">Lun</button>
+                            <button type="button" class="jour-picker-btn" data-index="1">Mar</button>
+                            <button type="button" class="jour-picker-btn" data-index="2">Mer</button>
+                            <button type="button" class="jour-picker-btn" data-index="3">Jeu</button>
+                            <button type="button" class="jour-picker-btn" data-index="4">Ven</button>
+                            <button type="button" class="jour-picker-btn" data-index="5">Sam</button>
+                            <button type="button" class="jour-picker-btn" data-index="6">Dim</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sélecteur jours du mois (Mensuel classique) -->
+                <div id="groupe-jours-mois" style="display:none;">
+                    <div class="form-groupe">
+                        <label class="form-label">Jours du mois à répéter</label>
+                        <div class="jours-mois-picker" id="jours-mois-picker">
+                            {% for j in range(1, 32) %}
+                            <button type="button" class="jour-mois-btn" data-jour="{{ j }}">{{ j }}</button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="form-grille-2">
@@ -162,10 +231,20 @@ function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) 
     const titreModal = document.getElementById('modal-titre-label');
     const erreurs = document.getElementById('modal-erreurs');
 
-    // Réinitialiser le formulaire
+    // Réinitialiser le formulaire et le submit
     document.getElementById('form-tache').reset();
+    document.getElementById('form-tache').onsubmit = sauvegarderTache;
     erreurs.style.display = 'none';
     erreurs.textContent = '';
+
+    // Réinitialiser la visibilité des champs récurrence
+    document.getElementById('groupe-type-recurrence').style.display = '';
+    document.getElementById('groupe-date-fin').style.display = 'none';
+    document.getElementById('groupe-jours-semaine').style.display = 'none';
+    document.getElementById('groupe-jours-mois').style.display = 'none';
+    // Effacer les sélections de jours
+    document.querySelectorAll('.jour-picker-btn.selectionne, .jour-mois-btn.selectionne')
+        .forEach(b => b.classList.remove('selectionne'));
 
     if (tache) {
         // Mode modification
@@ -179,6 +258,8 @@ function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) 
         document.getElementById('tache-categorie').value = tache.categorie || 'Autre';
         document.getElementById('tache-zone').value = tache.zone || 'urgent_important';
         document.getElementById('tache-heure-debut').value = tache.heure_debut || '';
+        document.getElementById('tache-recurrence').value = tache.recurrence || 'Une fois';
+        document.getElementById('tache-auto-regenerer').checked = tache.auto_regenerer || false;
     } else {
         // Mode création
         tacheEnCoursId = null;
@@ -229,6 +310,8 @@ async function sauvegarderTache(event) {
         categorie: document.getElementById('tache-categorie').value,
         zone: document.getElementById('tache-zone').value,
         heure_debut: champHeure.value || null,
+        recurrence: document.getElementById('tache-recurrence').value,
+        auto_regenerer: document.getElementById('tache-auto-regenerer').checked,
     };
 
     const estModification = tacheEnCoursId !== null;
@@ -256,6 +339,10 @@ async function sauvegarderTache(event) {
         // Rafraîchir l'affichage si la fonction existe (définie dans chaque page JS)
         if (typeof apresModificationTache === 'function') {
             apresModificationTache(resultat, estModification);
+            // Si auto-régénération a créé une nouvelle occurrence, l'ajouter aussi
+            if (resultat._nouvelle_occurrence) {
+                apresModificationTache(resultat._nouvelle_occurrence, false);
+            }
         } else {
             window.location.reload();
         }

@@ -140,11 +140,11 @@ async function deposerTache(event, zoneElement) {
         });
 
         if (reponse.ok) {
-            const tacheMisAJour = await reponse.json();
+            const resultat = await reponse.json();
 
             // Mettre à jour la liste locale
             const index = taches.findIndex(t => t.id === idTache);
-            if (index !== -1) taches[index] = tacheMisAJour;
+            if (index !== -1) taches[index] = resultat;
 
             // Déplacer la carte visuellement
             const ancienneZoneConteneur = document.getElementById(`zone-${tache.zone}`);
@@ -153,9 +153,15 @@ async function deposerTache(event, zoneElement) {
 
             if (carte && nouvelleZoneConteneur) {
                 if (ancienneZoneConteneur) ancienneZoneConteneur.removeChild(carte);
-                // Recréer la carte avec les nouvelles données
-                const nouvelleCarte = creerCarteTache(tacheMisAJour);
+                const nouvelleCarte = creerCarteTache(resultat);
                 nouvelleZoneConteneur.appendChild(nouvelleCarte);
+            }
+
+            // Auto-régénération : ajouter la nouvelle occurrence dans la bonne zone
+            if (resultat._nouvelle_occurrence) {
+                const nouvelleOcc = resultat._nouvelle_occurrence;
+                taches.push(nouvelleOcc);
+                placerTacheDansZone(nouvelleOcc);
             }
         } else {
             const erreur = await reponse.json();

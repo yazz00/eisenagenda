@@ -187,6 +187,27 @@ def page_ma_journee():
     )
 
 
+@pages_bp.route('/recurrence')
+def page_recurrence():
+    """Page Récurrence — tâches répétitives."""
+    taches_quotidien = Task.query.filter(
+        Task.recurrence == 'Quotidien', Task.zone != 'corbeille'
+    ).order_by(Task.date_echeance).all()
+    taches_hebdo = Task.query.filter(
+        Task.recurrence == 'Hebdomadaire', Task.zone != 'corbeille'
+    ).order_by(Task.date_echeance).all()
+    taches_mensuel = Task.query.filter(
+        Task.recurrence == 'Mensuel', Task.zone != 'corbeille'
+    ).order_by(Task.date_echeance).all()
+
+    return render_template(
+        'recurrence.html',
+        taches_quotidien_json=json.dumps([t.to_dict() for t in taches_quotidien], ensure_ascii=False),
+        taches_hebdo_json=json.dumps([t.to_dict() for t in taches_hebdo], ensure_ascii=False),
+        taches_mensuel_json=json.dumps([t.to_dict() for t in taches_mensuel], ensure_ascii=False),
+    )
+
+
 @pages_bp.route('/trash')
 def page_corbeille():
     """Page Corbeille — tâches supprimées."""

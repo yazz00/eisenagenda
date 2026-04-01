@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block titre %}Récurrence — EisenAgenda{% endblock %}
+
+{% block content %}
+
+<h1 class="titre-page">🔁 Tâches récurrentes</h1>
+
+<!-- ===== JOURNALIER ===== -->
+<div class="recurrence-section">
+    <div class="recurrence-section-entete">
+        <div class="recurrence-section-titre">
+            <span class="recurrence-badge badge-quotidien">Quotidien</span>
+            <span class="recurrence-section-label">Chaque jour</span>
+        </div>
+        <button class="btn btn-primaire btn-sm" onclick="ouvrirModalRecurrence('Quotidien')">+ Ajouter</button>
+    </div>
+    <div class="recurrence-liste" id="liste-quotidien">
+        <!-- rempli par JS -->
+    </div>
+</div>
+
+<!-- ===== HEBDOMADAIRE ===== -->
+<div class="recurrence-section">
+    <div class="recurrence-section-entete">
+        <div class="recurrence-section-titre">
+            <span class="recurrence-badge badge-hebdo">Hebdomadaire</span>
+            <span class="recurrence-section-label">Chaque semaine</span>
+        </div>
+        <button class="btn btn-primaire btn-sm" onclick="ouvrirModalRecurrence('Hebdomadaire')">+ Ajouter</button>
+    </div>
+    <div class="recurrence-liste" id="liste-hebdo">
+        <!-- rempli par JS -->
+    </div>
+</div>
+
+<!-- ===== MENSUEL ===== -->
+<div class="recurrence-section">
+    <div class="recurrence-section-entete">
+        <div class="recurrence-section-titre">
+            <span class="recurrence-badge badge-mensuel">Mensuel</span>
+            <span class="recurrence-section-label">Chaque mois</span>
+        </div>
+        <button class="btn btn-primaire btn-sm" onclick="ouvrirModalRecurrence('Mensuel')">+ Ajouter</button>
+    </div>
+    <div class="recurrence-liste" id="liste-mensuel">
+        <!-- rempli par JS -->
+    </div>
+</div>
+
+<!-- ===== AUTRES — sélection de dates ===== -->
+<div class="recurrence-section">
+    <div class="recurrence-section-entete">
+        <div class="recurrence-section-titre">
+            <span class="recurrence-badge badge-autres">Autres</span>
+            <span class="recurrence-section-label">Sélectionne des dates spécifiques</span>
+        </div>
+    </div>
+
+    <div class="autres-layout">
+        <!-- Mini-calendrier -->
+        <div class="mini-cal-conteneur">
+            <div class="mini-cal-nav">
+                <button class="btn btn-secondaire btn-sm" onclick="naviguerMiniCal(-1)">&#8249;</button>
+                <span id="mini-cal-titre" class="mini-cal-titre"></span>
+                <button class="btn btn-secondaire btn-sm" onclick="naviguerMiniCal(1)">&#8250;</button>
+            </div>
+            <div class="mini-cal-grille">
+                <div class="mini-cal-entetes">
+                    <span>Lu</span><span>Ma</span><span>Me</span>
+                    <span>Je</span><span>Ve</span><span>Sa</span><span>Di</span>
+                </div>
+                <div class="mini-cal-jours" id="mini-cal-jours"></div>
+            </div>
+        </div>
+
+        <!-- Dates sélectionnées + formulaire -->
+        <div class="autres-droite">
+            <div class="autres-dates-selectionnees">
+                <div class="autres-dates-titre">Dates sélectionnées :</div>
+                <div id="autres-dates-liste" class="autres-dates-liste">
+                    <span style="color:var(--texte-secondaire);font-size:0.85rem;">Aucune date sélectionnée</span>
+                </div>
+            </div>
+            <button class="btn btn-primaire" id="btn-creer-lot"
+                    onclick="ouvrirModalLot()" disabled>
+                Créer la tâche sur ces dates
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tachesQuotidien  = {{ taches_quotidien_json | safe }};
+const tachesHebdo      = {{ taches_hebdo_json | safe }};
+const tachesMensuel    = {{ taches_mensuel_json | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/recurrence.js') }}"></script>
+{% endblock %}

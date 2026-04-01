@@ -12,6 +12,7 @@ def migrer_schema(app):
         from sqlalchemy import text
         migrations = [
             "ALTER TABLE tasks ADD COLUMN heure_debut VARCHAR(5)",
+            "ALTER TABLE tasks ADD COLUMN auto_regenerer BOOLEAN NOT NULL DEFAULT 0",
             "ALTER TABLE config_journee ADD COLUMN gouter_actif BOOLEAN NOT NULL DEFAULT 0",
             "ALTER TABLE config_journee ADD COLUMN heure_gouter VARCHAR(5) NOT NULL DEFAULT '16:30'",
             "ALTER TABLE config_journee ADD COLUMN duree_gouter INTEGER NOT NULL DEFAULT 30",
