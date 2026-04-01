@@ -1501,6 +1501,134 @@ h1.titre-page {
 .zone-en-cours         { background: var(--orange-clair);  color: #9a3412; }
 .zone-fait             { background: var(--vert-clair);    color: #166534; }
 
+/* ===== CARTES GROUPÉES (récurrence) ===== */
+
+.recurrence-groupe {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: var(--blanc);
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+}
+
+.recurrence-groupe:hover {
+    box-shadow: var(--ombre);
+}
+
+.recurrence-groupe-entete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    flex-wrap: wrap;
+}
+
+.recurrence-groupe-gauche {
+    flex: 1;
+    min-width: 0;
+}
+
+.recurrence-groupe-titre {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.35rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recurrence-groupe-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--texte-secondaire);
+}
+
+.rg-info {
+    background: #f1f5f9;
+    border-radius: 4px;
+    padding: 0.15rem 0.45rem;
+    white-space: nowrap;
+}
+
+.rg-prochaine {
+    background: #ede9fe;
+    color: #5b21b6;
+    font-weight: 600;
+}
+
+.recurrence-groupe-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Détails dépliables */
+.recurrence-groupe-details {
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 0.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.recurrence-instance {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: background 0.1s;
+}
+
+.recurrence-instance:hover {
+    background: #e2e8f0;
+}
+
+.recurrence-instance-date {
+    font-weight: 600;
+    color: var(--texte);
+    min-width: 70px;
+}
+
+.recurrence-instance-heure {
+    color: var(--texte-secondaire);
+    min-width: 70px;
+}
+
+.recurrence-instance-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.3rem;
+}
+
+/* Bouton outline (toggle détails) */
+.btn-outline {
+    background: none;
+    border: 1px solid var(--gris-bord);
+    color: var(--texte-secondaire);
+}
+
+.btn-outline:hover {
+    background: #f1f5f9;
+    border-color: var(--gris);
+    color: var(--texte);
+}
+
+/* Bouton extra-small */
+.btn-xs {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.78rem;
+    border-radius: 5px;
+}
+
 /* ===== SECTION AUTRES ===== */
 
 .autres-layout {

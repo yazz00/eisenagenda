@@ -123,6 +123,49 @@ def creer_taches_lot():
     return jsonify([t.to_dict() for t in taches_creees]), 201
 
 
+@tasks_bp.route('/tasks/lot-update', methods=['PUT'])
+def modifier_taches_lot():
+    """Applique les mêmes champs à une liste de tâches (modification en lot)."""
+    donnees = request.get_json()
+    if not donnees:
+        return jsonify({'erreur': 'Corps de la requête JSON manquant.'}), 400
+
+    ids = donnees.get('ids', [])
+    champs = donnees.get('champs', {})
+
+    if not ids:
+        return jsonify({'erreur': 'La liste d\'identifiants est obligatoire.'}), 400
+
+    # Champs modifiables en lot (pas la date_echeance, propre à chaque instance)
+    champs_autorises = {
+        'titre', 'description', 'duree_estimee', 'categorie',
+        'zone', 'heure_debut', 'auto_regenerer',
+    }
+    champs_filtres = {k: v for k, v in champs.items() if k in champs_autorises}
+
+    if not champs_filtres:
+        return jsonify({'erreur': 'Aucun champ modifiable fourni.'}), 400
+
+    erreurs = valider_donnees_tache(champs_filtres, creation=False)
+    if erreurs:
+        return jsonify({'erreurs': erreurs}), 422
+
+    taches_maj = []
+    for tache_id in ids:
+        tache = Task.query.get(tache_id)
+        if not tache or tache.zone == 'corbeille':
+            continue
+        for cle, valeur in champs_filtres.items():
+            if cle == 'duree_estimee':
+                valeur = int(valeur) if valeur not in (None, '') else None
+            setattr(tache, cle, valeur)
+        tache.date_modification = datetime.utcnow()
+        taches_maj.append(tache)
+
+    db.session.commit()
+    return jsonify([t.to_dict() for t in taches_maj]), 200
+
+
 @tasks_bp.route('/tasks/<int:tache_id>', methods=['GET'])
 def obtenir_tache(tache_id):
     """Retourne une tâche par son identifiant."""

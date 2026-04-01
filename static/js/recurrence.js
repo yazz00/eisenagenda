@@ -49,7 +49,51 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// LISTES DE TÂCHES
+// GROUPEMENT DES TÂCHES
+// ============================================================
+
+/**
+ * Regroupe un tableau de tâches par titre (insensible à la casse).
+ * Retourne un tableau de groupes, chaque groupe ayant une liste d'instances.
+ */
+function grouperTaches(taches) {
+    const map = new Map();
+    taches.forEach(t => {
+        const cle = t.titre.trim().toLowerCase();
+        if (!map.has(cle)) {
+            map.set(cle, {
+                titre:        t.titre,
+                zone:         t.zone,
+                categorie:    t.categorie,
+                description:  t.description,
+                duree_estimee: t.duree_estimee,
+                heure_debut:  t.heure_debut,
+                auto_regenerer: t.auto_regenerer,
+                recurrence:   t.recurrence,
+                instances:    [],
+            });
+        }
+        map.get(cle).instances.push(t);
+    });
+
+    // Trier les instances de chaque groupe par date
+    map.forEach(groupe => {
+        groupe.instances.sort((a, b) =>
+            (a.date_echeance || '').localeCompare(b.date_echeance || '')
+        );
+    });
+
+    // Trier les groupes : d'abord ceux avec une prochaine date à venir
+    const aujourd_hui = formaterDateISO(new Date());
+    return [...map.values()].sort((a, b) => {
+        const prochA = a.instances.find(i => i.date_echeance >= aujourd_hui)?.date_echeance || '';
+        const prochB = b.instances.find(i => i.date_echeance >= aujourd_hui)?.date_echeance || '';
+        return prochA.localeCompare(prochB);
+    });
+}
+
+// ============================================================
+// LISTES DE TÂCHES (groupées)
 // ============================================================
 
 function rendreListeRecurrence(type, idConteneur) {
@@ -61,40 +105,107 @@ function rendreListeRecurrence(type, idConteneur) {
         return;
     }
 
+    const groupes = grouperTaches(taches);
     conteneur.innerHTML = '';
-    taches.forEach(t => conteneur.appendChild(creerCarteRecurrence(t)));
+    groupes.forEach(g => conteneur.appendChild(creerCarteGroupe(g)));
 }
 
-function creerCarteRecurrence(tache) {
-    const zone = ZONES_LABELS[tache.zone] || { label: tache.zone, classe: '' };
+function creerCarteGroupe(groupe) {
+    const ids = groupe.instances.map(t => t.id);
+    const zone = ZONES_LABELS[groupe.zone] || { label: groupe.zone, classe: '' };
+    const aujourd_hui = formaterDateISO(new Date());
+    const nb = groupe.instances.length;
+
+    // Prochaine occurrence à venir (>= aujourd'hui)
+    const prochaine = groupe.instances.find(i => i.date_echeance >= aujourd_hui);
+    // Plage de dates
+    const dateMin = groupe.instances[0]?.date_echeance;
+    const dateMax = groupe.instances[nb - 1]?.date_echeance;
+    const plageDates = (dateMin && dateMax && dateMin !== dateMax)
+        ? `${formaterDate(dateMin)} → ${formaterDate(dateMax)}`
+        : dateMin ? formaterDate(dateMin) : '—';
+
     const carte = document.createElement('div');
-    carte.className = 'recurrence-carte';
-    carte.dataset.id = tache.id;
+    carte.className = 'recurrence-groupe';
 
-    const prochaine = tache.date_echeance
-        ? formaterDate(tache.date_echeance)
-        : '—';
-
-    carte.innerHTML = `
-        <div class="recurrence-carte-gauche">
-            <div class="recurrence-carte-titre">${echapper(tache.titre)}</div>
-            <div class="recurrence-carte-meta">
+    // ---- En-tête du groupe ----
+    const entete = document.createElement('div');
+    entete.className = 'recurrence-groupe-entete';
+    entete.innerHTML = `
+        <div class="recurrence-groupe-gauche">
+            <div class="recurrence-groupe-titre">${echapper(groupe.titre)}</div>
+            <div class="recurrence-groupe-meta">
                 <span class="zone-chip ${zone.classe}">${zone.label}</span>
-                ${tache.date_echeance ? `<span class="recurrence-carte-date">📅 ${prochaine}</span>` : ''}
-                ${tache.duree_estimee ? `<span>⏱ ${tache.duree_estimee} min</span>` : ''}
+                <span class="rg-info">📦 ${nb} occurrence${nb > 1 ? 's' : ''}</span>
+                <span class="rg-info">📅 ${plageDates}</span>
+                ${prochaine ? `<span class="rg-info rg-prochaine">⏭ Prochaine : ${formaterDate(prochaine.date_echeance)}</span>` : ''}
+                ${groupe.duree_estimee ? `<span class="rg-info">⏱ ${groupe.duree_estimee} min</span>` : ''}
             </div>
         </div>
-        <div class="recurrence-carte-droite">
+        <div class="recurrence-groupe-actions">
             <label class="auto-regen-label" title="Recréer automatiquement quand marquée Fait">
-                <input type="checkbox" class="auto-regen-cb" data-id="${tache.id}"
-                    ${tache.auto_regenerer ? 'checked' : ''}
-                    onchange="toggleAutoRegen(${tache.id}, this.checked)">
+                <input type="checkbox" class="auto-regen-groupe-cb"
+                    ${groupe.auto_regenerer ? 'checked' : ''}>
                 🔄 Auto
             </label>
-            <button class="btn btn-secondaire btn-sm" onclick="ouvrirModal(${JSON.stringify(tache).replace(/"/g, '&quot;')})">✏</button>
-            <button class="btn btn-danger btn-sm" onclick="supprimerTache(${tache.id})">🗑</button>
+            <button class="btn btn-secondaire btn-sm btn-modifier-groupe" title="Modifier toutes les occurrences">✏ Modifier tout</button>
+            <button class="btn btn-danger btn-sm btn-supprimer-groupe" title="Supprimer toutes les occurrences">🗑 Supprimer tout</button>
+            <button class="btn btn-outline btn-sm btn-toggle-details" title="Voir les occurrences">▼ Détails</button>
         </div>
     `;
+
+    // ---- Panneau détails (instances individuelles) ----
+    const details = document.createElement('div');
+    details.className = 'recurrence-groupe-details';
+    details.style.display = 'none';
+
+    groupe.instances.forEach(t => {
+        const ligne = document.createElement('div');
+        ligne.className = 'recurrence-instance';
+        ligne.dataset.id = t.id;
+        ligne.innerHTML = `
+            <span class="recurrence-instance-date">${t.date_echeance ? formaterDate(t.date_echeance) : '—'}</span>
+            ${t.heure_debut ? `<span class="recurrence-instance-heure">🕐 ${t.heure_debut}</span>` : ''}
+            ${t.zone !== groupe.zone ? `<span class="zone-chip ${(ZONES_LABELS[t.zone] || {}).classe || ''}" style="font-size:0.75rem;">${(ZONES_LABELS[t.zone] || {label:t.zone}).label}</span>` : ''}
+            <div class="recurrence-instance-actions">
+                <button class="btn btn-secondaire btn-xs" title="Modifier">✏</button>
+                <button class="btn btn-danger btn-xs" title="Supprimer">🗑</button>
+            </div>
+        `;
+        // Boutons de la ligne individuelle
+        ligne.querySelector('.btn-secondaire').addEventListener('click', () => ouvrirModal(t));
+        ligne.querySelector('.btn-danger').addEventListener('click', () => supprimerTache(t.id));
+        details.appendChild(ligne);
+    });
+
+    carte.appendChild(entete);
+    carte.appendChild(details);
+
+    // ---- Événements de la carte ----
+
+    // Toggle auto-regen pour tout le groupe
+    entete.querySelector('.auto-regen-groupe-cb').addEventListener('change', async function() {
+        await toggleAutoRegenGroupe(ids, this.checked, groupe);
+    });
+
+    // Modifier tout le groupe
+    entete.querySelector('.btn-modifier-groupe').addEventListener('click', () => {
+        ouvrirModalModifierGroupe(groupe, ids);
+    });
+
+    // Supprimer tout le groupe
+    entete.querySelector('.btn-supprimer-groupe').addEventListener('click', () => {
+        supprimerGroupe(ids);
+    });
+
+    // Expand/collapse détails
+    const btnDetails = entete.querySelector('.btn-toggle-details');
+    btnDetails.addEventListener('click', () => {
+        const ouvert = details.style.display !== 'none';
+        details.style.display = ouvert ? 'none' : 'block';
+        btnDetails.textContent = ouvert ? '▼ Détails' : '▲ Masquer';
+    });
+
     return carte;
 }
 
@@ -152,48 +263,155 @@ function ouvrirModalRecurrence(typeRecurrence) {
 }
 
 // ============================================================
-// TOGGLE AUTO-RÉGÉNÉRATION
+// TOGGLE AUTO-RÉGÉNÉRATION (groupe)
 // ============================================================
 
-async function toggleAutoRegen(id, actif) {
+async function toggleAutoRegenGroupe(ids, actif, groupe) {
     try {
-        await fetch(`/api/tasks/${id}`, {
+        await fetch('/api/tasks/lot-update', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auto_regenerer: actif }),
+            body: JSON.stringify({ ids, champs: { auto_regenerer: actif } }),
         });
         // Mettre à jour en mémoire
         for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
-            const t = tachesParType[type].find(t => t.id === id);
-            if (t) t.auto_regenerer = actif;
+            tachesParType[type].forEach(t => {
+                if (ids.includes(t.id)) t.auto_regenerer = actif;
+            });
         }
+        groupe.auto_regenerer = actif;
     } catch {
         alert('Erreur lors de la mise à jour.');
     }
 }
 
 // ============================================================
-// SUPPRIMER (→ corbeille)
+// SUPPRIMER UNE INSTANCE (→ corbeille)
 // ============================================================
 
 async function supprimerTache(id) {
-    if (!confirm('Envoyer cette tâche à la corbeille ?')) return;
+    if (!confirm('Envoyer cette occurrence à la corbeille ?')) return;
     try {
         await fetch(`/api/tasks/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ zone: 'corbeille' }),
         });
-        // Retirer de toutes les listes
         for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
             tachesParType[type] = tachesParType[type].filter(t => t.id !== id);
         }
-        rendreListeRecurrence('Quotidien',    'liste-quotidien');
-        rendreListeRecurrence('Hebdomadaire', 'liste-hebdo');
-        rendreListeRecurrence('Mensuel',      'liste-mensuel');
+        rendreListesRecurrence();
     } catch {
         alert('Erreur lors de la suppression.');
     }
+}
+
+// ============================================================
+// SUPPRIMER TOUT LE GROUPE (→ corbeille)
+// ============================================================
+
+async function supprimerGroupe(ids) {
+    const nb = ids.length;
+    if (!confirm(`Envoyer les ${nb} occurrence${nb > 1 ? 's' : ''} de cette tâche à la corbeille ?`)) return;
+    try {
+        // On met toutes les instances en zone "corbeille" via lot-update
+        await fetch('/api/tasks/lot-update', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, champs: { zone: 'corbeille' } }),
+        });
+        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
+            tachesParType[type] = tachesParType[type].filter(t => !ids.includes(t.id));
+        }
+        rendreListesRecurrence();
+    } catch {
+        alert('Erreur lors de la suppression.');
+    }
+}
+
+// ============================================================
+// MODIFIER TOUT LE GROUPE
+// ============================================================
+
+function ouvrirModalModifierGroupe(groupe, ids) {
+    // Ouvrir le modal vide (pas de tâche individuelle)
+    ouvrirModal(null, null, null);
+    setTimeout(() => {
+        // Pré-remplir les champs partagés du groupe
+        document.getElementById('tache-titre').value        = groupe.titre;
+        document.getElementById('tache-description').value  = groupe.description || '';
+        document.getElementById('tache-duree').value        = groupe.duree_estimee || '';
+        document.getElementById('tache-categorie').value    = groupe.categorie || 'Autre';
+        document.getElementById('tache-zone').value         = groupe.zone || 'urgent_important';
+        document.getElementById('tache-heure-debut').value  = groupe.heure_debut || '';
+
+        // Titre du modal
+        document.getElementById('modal-titre').textContent =
+            `✏ Modifier — ${groupe.titre} (${ids.length} occurrence${ids.length > 1 ? 's' : ''})`;
+
+        // Masquer les champs non pertinents pour une édition groupée
+        document.getElementById('tache-date').closest('.form-groupe').style.display = 'none';
+        document.getElementById('groupe-recurrence').style.display = 'none';
+
+        // Remplacer le submit
+        document.getElementById('form-tache').onsubmit = (e) => sauvegarderModificationGroupe(e, ids, groupe.recurrence);
+    }, 10);
+}
+
+async function sauvegarderModificationGroupe(event, ids, typeRecurrence) {
+    event.preventDefault();
+    const erreurs = document.getElementById('modal-erreurs');
+    erreurs.style.display = 'none';
+
+    const titre = document.getElementById('tache-titre').value.trim();
+    if (!titre) {
+        erreurs.textContent = 'Le titre est obligatoire.';
+        erreurs.style.display = 'block';
+        return;
+    }
+
+    const champs = {
+        titre,
+        description:   document.getElementById('tache-description').value.trim() || null,
+        duree_estimee: document.getElementById('tache-duree').value
+            ? parseInt(document.getElementById('tache-duree').value) : null,
+        categorie:     document.getElementById('tache-categorie').value,
+        zone:          document.getElementById('tache-zone').value,
+        heure_debut:   document.getElementById('tache-heure-debut').value || null,
+    };
+
+    try {
+        const rep = await fetch('/api/tasks/lot-update', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, champs }),
+        });
+        const res = await rep.json();
+        if (!rep.ok) {
+            const msgs = res.erreurs || [res.erreur || 'Erreur'];
+            erreurs.innerHTML = msgs.join('<br>');
+            erreurs.style.display = 'block';
+            return;
+        }
+        // Restaurer le champ date masqué
+        document.getElementById('tache-date').closest('.form-groupe').style.display = '';
+        fermerModal();
+        // Mettre à jour en mémoire
+        res.forEach(t => apresModificationTache(t, true));
+    } catch {
+        erreurs.textContent = 'Erreur de connexion.';
+        erreurs.style.display = 'block';
+    }
+}
+
+// ============================================================
+// RAFRAÎCHISSEMENT DE TOUTES LES LISTES
+// ============================================================
+
+function rendreListesRecurrence() {
+    rendreListeRecurrence('Quotidien',    'liste-quotidien');
+    rendreListeRecurrence('Hebdomadaire', 'liste-hebdo');
+    rendreListeRecurrence('Mensuel',      'liste-mensuel');
 }
 
 // ============================================================
@@ -207,15 +425,13 @@ function apresModificationTache(tache, estModification) {
     if (estModification) {
         // Retirer l'ancienne version de toutes les listes
         for (const t of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
-            tachesParType[t] = tachesParType[t].filter(t => t.id !== tache.id);
+            tachesParType[t] = tachesParType[t].filter(i => i.id !== tache.id);
         }
     }
     if (!tachesParType[type]) tachesParType[type] = [];
     tachesParType[type].push(tache);
 
-    rendreListeRecurrence('Quotidien',    'liste-quotidien');
-    rendreListeRecurrence('Hebdomadaire', 'liste-hebdo');
-    rendreListeRecurrence('Mensuel',      'liste-mensuel');
+    rendreListesRecurrence();
 }
 
 // ============================================================
