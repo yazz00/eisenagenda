@@ -8,35 +8,65 @@
 </head>
 <body>
 
-<!-- ===== BARRE DE NAVIGATION ===== -->
-<nav class="navbar">
-    <a href="/" class="navbar-logo">📋 EisenAgenda</a>
-    <ul class="navbar-liens">
-        <li>
-            <a href="/" class="{% if request.endpoint == 'pages.page_matrice' %}actif{% endif %}">
-                🗂 <span class="label">Matrice</span>
-            </a>
-        </li>
-        <li>
-            <a href="/calendar" class="{% if request.endpoint in ('pages.page_calendrier', 'pages.page_ma_journee') %}actif{% endif %}">
-                📅 <span class="label">Calendrier</span>
-            </a>
-        </li>
-        <li>
-            <a href="/dashboard" class="{% if request.endpoint == 'pages.page_tableau_de_bord' %}actif{% endif %}">
-                📊 <span class="label">Tableau de bord</span>
-            </a>
-        </li>
-        <li>
-            <a href="/trash" class="{% if request.endpoint == 'pages.page_corbeille' %}actif{% endif %}">
-                🗑 <span class="label">Corbeille</span>
-            </a>
-        </li>
-    </ul>
-    <a href="#" class="navbar-liens btn-nouvelle-tache" onclick="ouvrirModal(); return false;">
-        + Nouvelle tâche
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-entete">
+        <a href="/calendar" class="sidebar-logo">📋 <span class="sidebar-texte">EisenAgenda</span></a>
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="Réduire le menu">&#8249;</button>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="/calendar" class="sidebar-lien {% if request.endpoint in ('pages.page_calendrier', 'pages.page_ma_journee') %}actif{% endif %}" title="Planning">
+            <span class="sidebar-icone">📅</span><span class="sidebar-texte">Planning</span>
+        </a>
+        <a href="/matrix" class="sidebar-lien {% if request.endpoint == 'pages.page_matrice' %}actif{% endif %}" title="Matrice">
+            <span class="sidebar-icone">🗂</span><span class="sidebar-texte">Matrice</span>
+        </a>
+        <a href="/dashboard" class="sidebar-lien {% if request.endpoint == 'pages.page_tableau_de_bord' %}actif{% endif %}" title="Tableau de bord">
+            <span class="sidebar-icone">📊</span><span class="sidebar-texte">Tableau de bord</span>
+        </a>
+        <a href="/trash" class="sidebar-lien {% if request.endpoint == 'pages.page_corbeille' %}actif{% endif %}" title="Corbeille">
+            <span class="sidebar-icone">🗑</span><span class="sidebar-texte">Corbeille</span>
+        </a>
+    </nav>
+
+    <a href="#" class="sidebar-btn-tache" onclick="ouvrirModal(); return false;" title="Nouvelle tâche">
+        <span class="sidebar-icone">✚</span><span class="sidebar-texte"> Nouvelle tâche</span>
     </a>
-</nav>
+</aside>
+
+<script>
+const SIDEBAR_OUVERTE  = '220px';
+const SIDEBAR_REDUITE  = '56px';
+
+function appliquerSidebar(reduite, anime) {
+    const sidebar = document.getElementById('sidebar');
+    // Désactiver la transition si chargement initial
+    if (!anime) {
+        sidebar.style.transition = 'none';
+        document.body.style.transition = 'none';
+    }
+    sidebar.classList.toggle('sidebar--reduite', reduite);
+    document.body.style.paddingLeft = reduite ? SIDEBAR_REDUITE : SIDEBAR_OUVERTE;
+    sidebar.querySelector('.sidebar-toggle').innerHTML = reduite ? '&#8250;' : '&#8249;';
+    // Réactiver la transition après application
+    if (!anime) {
+        requestAnimationFrame(() => {
+            sidebar.style.transition = '';
+            document.body.style.transition = '';
+        });
+    }
+}
+
+function toggleSidebar() {
+    const reduite = !document.getElementById('sidebar').classList.contains('sidebar--reduite');
+    appliquerSidebar(reduite, true);
+    localStorage.setItem('sidebar-reduite', reduite ? '1' : '0');
+}
+
+// Restaurer l'état immédiatement sans animation
+appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
+</script>
 
 <!-- ===== CONTENU DE LA PAGE ===== -->
 <main class="contenu">

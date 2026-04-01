@@ -31,7 +31,7 @@
     --ombre: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
     --ombre-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
     --rayon: 10px;
-    --navbar-hauteur: 60px;
+    --sidebar-largeur: 220px;
 }
 
 /* ===== RESET & BASE ===== */
@@ -46,79 +46,150 @@ body {
     background: var(--fond);
     color: var(--texte);
     min-height: 100vh;
-    padding-top: var(--navbar-hauteur);
+    padding-left: var(--sidebar-largeur);
+    transition: padding-left 0.25s ease;
 }
 
-/* ===== NAVBAR ===== */
-.navbar {
+/* ===== SIDEBAR ===== */
+.sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    height: var(--navbar-hauteur);
+    bottom: 0;
+    width: var(--sidebar-largeur);
     background: var(--blanc);
-    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
     box-shadow: var(--ombre);
     z-index: 1000;
     display: flex;
-    align-items: center;
-    padding: 0 1.5rem;
-    gap: 1rem;
+    flex-direction: column;
+    padding: 1rem 0.75rem;
+    gap: 0.25rem;
+    overflow: hidden;
+    transition: width 0.25s ease;
 }
 
-.navbar-logo {
-    font-size: 1.25rem;
+.sidebar--reduite {
+    width: 56px;
+}
+
+.sidebar-entete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    min-height: 36px;
+}
+
+.sidebar-logo {
+    font-size: 1.05rem;
     font-weight: 700;
     color: var(--texte);
     text-decoration: none;
-    margin-right: auto;
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-.navbar-liens {
+.sidebar-toggle {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--texte-secondaire);
     display: flex;
-    gap: 0.25rem;
-    list-style: none;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
 }
 
-.navbar-liens a {
+.sidebar-toggle:hover {
+    background: var(--fond);
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+}
+
+.sidebar-lien {
     text-decoration: none;
     color: var(--texte-secondaire);
-    padding: 0.4rem 0.85rem;
-    border-radius: 6px;
+    padding: 0.6rem 0.5rem;
+    border-radius: 8px;
     font-size: 0.9rem;
     font-weight: 500;
     transition: background 0.15s, color 0.15s;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-.navbar-liens a:hover,
-.navbar-liens a.actif {
+.sidebar-lien:hover {
     background: var(--fond);
     color: var(--texte);
 }
 
-.navbar-liens a.actif {
+.sidebar-lien.actif {
     background: #e0e7ff;
     color: #4338ca;
+    font-weight: 600;
 }
 
-.btn-nouvelle-tache {
+.sidebar-icone {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    width: 22px;
+    text-align: center;
+}
+
+.sidebar-texte {
+    overflow: hidden;
+    transition: opacity 0.2s ease, width 0.25s ease;
+    white-space: nowrap;
+}
+
+.sidebar--reduite .sidebar-texte {
+    opacity: 0;
+    width: 0;
+}
+
+.sidebar-btn-tache {
+    margin-top: auto;
+    width: 100%;
+    padding: 0.6rem 0.5rem;
     background: #4f46e5;
-    color: white !important;
-    border-radius: 8px !important;
-    padding: 0.45rem 1rem !important;
-    font-weight: 600 !important;
-    transition: background 0.15s !important;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-align: left;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-.btn-nouvelle-tache:hover {
-    background: #4338ca !important;
-    color: white !important;
+.sidebar-btn-tache:hover {
+    background: #4338ca;
+    color: white;
 }
 
 /* ===== CONTENU PRINCIPAL ===== */
@@ -465,16 +536,32 @@ h1.titre-page {
 /* ===== CALENDRIER ===== */
 .calendrier-controles {
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.6rem;
     margin-bottom: 1.25rem;
-    flex-wrap: wrap;
+}
+
+.controles-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.controles-vues {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-nav {
+    padding: 0.35rem 0.75rem !important;
+    font-size: 1.1rem;
 }
 
 .calendrier-titre-mois {
     font-size: 1.2rem;
     font-weight: 700;
-    min-width: 180px;
+    flex: 1;
     text-align: center;
 }
 
@@ -881,7 +968,7 @@ h1.titre-page {
     box-shadow: var(--ombre);
     padding: 1rem;
     position: sticky;
-    top: calc(var(--navbar-hauteur) + 1rem);
+    top: 1rem;
 }
 
 .panneau-titre {
@@ -951,8 +1038,6 @@ h1.titre-page {
     background: var(--blanc);
     border-radius: var(--rayon);
     box-shadow: var(--ombre);
-    overflow-y: auto;
-    max-height: calc(100vh - var(--navbar-hauteur) - 6rem);
 }
 
 .timeline {
@@ -1034,6 +1119,12 @@ h1.titre-page {
     color: #15803d;
 }
 
+.pause-gouter {
+    background: rgba(168, 85, 247, 0.12);
+    border-left: 3px solid #a855f7;
+    color: #7e22ce;
+}
+
 /* Blocs de tâches */
 .bloc-tache {
     position: absolute;
@@ -1100,8 +1191,6 @@ h1.titre-page {
 /* ===== TIMELINE SEMAINE ===== */
 
 .semaine-tl-scroll {
-    overflow-y: auto;
-    max-height: calc(100vh - 180px);
     border: 1px solid var(--gris-bord);
     border-radius: 0.5rem;
     background: var(--blanc);

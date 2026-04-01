@@ -19,6 +19,11 @@ class ConfigJournee(db.Model):
     heure_diner = db.Column(db.String(5), nullable=False, default='19:30')
     duree_diner = db.Column(db.Integer, nullable=False, default=45)  # minutes
 
+    # Goûter (optionnel, activé par checkbox)
+    gouter_actif = db.Column(db.Boolean, nullable=False, default=False)
+    heure_gouter = db.Column(db.String(5), nullable=False, default='16:30')
+    duree_gouter = db.Column(db.Integer, nullable=False, default=30)  # minutes
+
     def to_dict(self):
         """Convertit la config en dictionnaire sérialisable JSON."""
         return {
@@ -28,4 +33,7 @@ class ConfigJournee(db.Model):
             'duree_dejeuner': self.duree_dejeuner,
             'heure_diner': self.heure_diner,
             'duree_diner': self.duree_diner,
+            'gouter_actif': self.gouter_actif,
+            'heure_gouter': self.heure_gouter,
+            'duree_gouter': self.duree_gouter,
         }

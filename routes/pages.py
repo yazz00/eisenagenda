@@ -8,8 +8,15 @@ pages_bp = Blueprint('pages', __name__)
 
 
 @pages_bp.route('/')
+def page_accueil():
+    """Redirection page d'accueil → Planning du jour."""
+    from flask import redirect
+    return redirect('/calendar')
+
+
+@pages_bp.route('/matrix')
 def page_matrice():
-    """Page principale — Matrice Eisenhower."""
+    """Page Matrice Eisenhower."""
     taches = Task.query.filter(Task.zone != 'corbeille').all()
     taches_json = json.dumps([t.to_dict() for t in taches], ensure_ascii=False)
     return render_template('matrix.html', taches_json=taches_json)

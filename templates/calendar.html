@@ -6,22 +6,25 @@
 
 <!-- Barre de contrôles -->
 <div class="calendrier-controles">
-    <button class="btn btn-secondaire" onclick="naviguer(-1)">&#8249; Précédent</button>
-    <span class="calendrier-titre-mois" id="titre-periode">Chargement...</span>
-    <button class="btn btn-secondaire" onclick="naviguer(1)">Suivant &#8250;</button>
-    <button class="btn btn-secondaire" onclick="allerAujourdhui()">Aujourd'hui</button>
-
-    <div class="toggle-vue">
-        <button id="btn-vue-jour" onclick="changerVue('jour')">Jour</button>
-        <button id="btn-vue-semaine" onclick="changerVue('semaine')">Semaine</button>
-        <button id="btn-vue-mois" class="actif" onclick="changerVue('mois')">Mois</button>
+    <!-- Ligne 1 : navigation -->
+    <div class="controles-nav">
+        <button class="btn btn-secondaire btn-nav" onclick="naviguer(-1)">&#8249;</button>
+        <span class="calendrier-titre-mois" id="titre-periode">Chargement...</span>
+        <button class="btn btn-secondaire btn-nav" onclick="naviguer(1)">&#8250;</button>
+        <button class="btn btn-secondaire" onclick="allerAujourdhui()">Aujourd'hui</button>
     </div>
-
-    <!-- Bouton config visible uniquement en vue jour et semaine -->
-    <button class="btn btn-secondaire" id="btn-config-journee"
-            style="display:none;" onclick="ouvrirConfigJournee()">
-        ⚙ Pauses
-    </button>
+    <!-- Ligne 2 : vues + config -->
+    <div class="controles-vues">
+        <div class="toggle-vue">
+            <button id="btn-vue-jour" class="actif" onclick="changerVue('jour')">Jour</button>
+            <button id="btn-vue-semaine" onclick="changerVue('semaine')">Semaine</button>
+            <button id="btn-vue-mois" onclick="changerVue('mois')">Mois</button>
+        </div>
+        <button class="btn btn-secondaire" id="btn-config-journee"
+                style="display:none;" onclick="ouvrirConfigJournee()">
+            ⚙ Pauses
+        </button>
+    </div>
 </div>
 
 <!-- Conteneur principal (rempli par JS selon la vue) -->
@@ -64,6 +67,28 @@
                     <div class="form-groupe">
                         <label class="form-label" for="cfg-duree-dejeuner">Durée (min)</label>
                         <input type="number" id="cfg-duree-dejeuner" class="form-input" min="0" step="5">
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-left:3px solid #a855f7; padding-left:0.75rem; margin-bottom:1rem;">
+                <div style="font-weight:700; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.75rem;">
+                    🍰 Goûter
+                    <label style="font-weight:400; font-size:0.85rem; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                        <input type="checkbox" id="cfg-gouter-actif" onchange="basculerGouter(this.checked)">
+                        Activer
+                    </label>
+                </div>
+                <div id="cfg-gouter-details" style="display:none;">
+                    <div class="form-grille-2">
+                        <div class="form-groupe">
+                            <label class="form-label" for="cfg-heure-gouter">Heure de début</label>
+                            <input type="time" id="cfg-heure-gouter" class="form-input">
+                        </div>
+                        <div class="form-groupe">
+                            <label class="form-label" for="cfg-duree-gouter">Durée (min)</label>
+                            <input type="number" id="cfg-duree-gouter" class="form-input" min="0" step="5">
+                        </div>
                     </div>
                 </div>
             </div>

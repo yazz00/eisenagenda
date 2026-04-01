@@ -12,12 +12,12 @@ const MOIS_NOMS = [
 const TL_HEURE_DEBUT   = 5;           // 5h00
 const TL_HEURE_FIN     = 24;          // 00h00 (minuit)
 const TL_MIN_DEBUT     = TL_HEURE_DEBUT * 60;
-const TL_PX_MIN_JOUR   = 3;           // vue jour : 3px/min → 1h = 180px
-const TL_PX_MIN_SEM    = 1.5;         // vue semaine : 1.5px/min → 1h = 90px
+const TL_PX_MIN_JOUR   = 0.7;         // vue jour : 0.7px/min → 1h = 42px
+const TL_PX_MIN_SEM    = 0.7;         // vue semaine : 0.7px/min → 1h = 42px
 
 // État global
 let taches = [...tachesInitiales];
-let vueActuelle = 'mois';
+let vueActuelle = 'jour';
 let dateActuelle = new Date();
 
 // ===== INITIALISATION =====
@@ -229,10 +229,6 @@ function rendreSemaine() {
     scroll.appendChild(wrapper);
     conteneur.appendChild(scroll);
 
-    // Scroll automatique vers 7h au chargement
-    setTimeout(() => {
-        scroll.scrollTop = (7 * 60 - TL_MIN_DEBUT) * TL_PX_MIN_SEM - 50;
-    }, 50);
 }
 
 // ============================================================
@@ -392,12 +388,6 @@ function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO) {
         }
     }
 
-    // Scroll automatique vers 7h
-    setTimeout(() => {
-        if (tl.parentElement) {
-            tl.parentElement.scrollTop = (7 * 60 - TL_MIN_DEBUT) * pxParMin - 50;
-        }
-    }, 50);
 
     return tl;
 }
@@ -408,6 +398,10 @@ function creerBlocsPauses(conteneur, pxParMin, compact) {
         { label: '🍽 Déjeuner',          heure: configJournee.heure_dejeuner,  duree: configJournee.duree_dejeuner,      classe: 'pause-dejeuner' },
         { label: '🌙 Dîner',             heure: configJournee.heure_diner,     duree: configJournee.duree_diner,         classe: 'pause-diner'    },
     ];
+
+    if (configJournee.gouter_actif) {
+        pauses.push({ label: '🍰 Goûter', heure: configJournee.heure_gouter, duree: configJournee.duree_gouter, classe: 'pause-gouter' });
+    }
 
     pauses.forEach(p => {
         if (!p.heure || !p.duree) return;
@@ -513,8 +507,16 @@ async function ouvrirConfigJournee() {
         document.getElementById('cfg-duree-dejeuner').value  = cfg.duree_dejeuner || 60;
         document.getElementById('cfg-heure-diner').value     = cfg.heure_diner || '19:30';
         document.getElementById('cfg-duree-diner').value     = cfg.duree_diner || 45;
+        document.getElementById('cfg-gouter-actif').checked  = cfg.gouter_actif || false;
+        document.getElementById('cfg-heure-gouter').value    = cfg.heure_gouter || '16:30';
+        document.getElementById('cfg-duree-gouter').value    = cfg.duree_gouter || 30;
+        basculerGouter(cfg.gouter_actif || false);
         document.getElementById('modal-config-overlay').classList.add('actif');
     } catch { alert('Erreur de connexion.'); }
+}
+
+function basculerGouter(actif) {
+    document.getElementById('cfg-gouter-details').style.display = actif ? '' : 'none';
 }
 
 function fermerConfigJournee() {
@@ -537,6 +539,9 @@ async function sauvegarderConfig(e) {
         duree_dejeuner:       parseInt(document.getElementById('cfg-duree-dejeuner').value) || 0,
         heure_diner:          document.getElementById('cfg-heure-diner').value,
         duree_diner:          parseInt(document.getElementById('cfg-duree-diner').value)    || 0,
+        gouter_actif:         document.getElementById('cfg-gouter-actif').checked,
+        heure_gouter:         document.getElementById('cfg-heure-gouter').value,
+        duree_gouter:         parseInt(document.getElementById('cfg-duree-gouter').value)   || 0,
     };
 
     try {

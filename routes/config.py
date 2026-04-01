@@ -42,13 +42,13 @@ def modifier_config_journee():
     erreurs = []
 
     # Validation des heures
-    for champ in ['heure_reveil', 'heure_dejeuner', 'heure_diner']:
+    for champ in ['heure_reveil', 'heure_dejeuner', 'heure_diner', 'heure_gouter']:
         erreur = valider_heure(donnees.get(champ), champ)
         if erreur:
             erreurs.append(erreur)
 
     # Validation des durées
-    for champ in ['duree_routine_matin', 'duree_dejeuner', 'duree_diner']:
+    for champ in ['duree_routine_matin', 'duree_dejeuner', 'duree_diner', 'duree_gouter']:
         valeur = donnees.get(champ)
         if valeur is not None:
             try:
@@ -74,6 +74,12 @@ def modifier_config_journee():
         config.heure_diner = donnees['heure_diner']
     if 'duree_diner' in donnees:
         config.duree_diner = int(donnees['duree_diner'])
+    if 'gouter_actif' in donnees:
+        config.gouter_actif = bool(donnees['gouter_actif'])
+    if 'heure_gouter' in donnees:
+        config.heure_gouter = donnees['heure_gouter']
+    if 'duree_gouter' in donnees:
+        config.duree_gouter = int(donnees['duree_gouter'])
 
     db.session.commit()
     return jsonify(config.to_dict()), 200
