@@ -2552,3 +2552,38 @@ h1.titre-page {
 .db-section .zone[data-zone="urgent"]           { background: #fffcf0; }
 .db-section .zone[data-zone="neutre"]           { background: #f8fafc; }
 
+
+/* ===== PLANNING — VUE 3 JOURS / SEMAINE — correctifs ===== */
+
+/* Spacer dans la colonne des heures : même style que semaine-tl-entete mais non interactif */
+.semaine-tl-heures-spacer {
+    cursor: default !important;
+    pointer-events: none;
+    border-bottom: 2px solid var(--gris-bord);
+    background: var(--fond);
+}
+
+/* Label jour dans le panneau non-planifiées multi-jours */
+.panneau-jour-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--texte-secondaire);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.6rem;
+    margin-bottom: 0.15rem;
+    padding: 0 0.25rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.4rem;
+}
+
+.panneau-jour-label:first-child {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+}
+
+/* Overflow caché sur la zone timeline pour couper les traits */
+.semaine-tl-zone {
+    overflow: hidden;
+}

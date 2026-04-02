@@ -1,4 +1,4 @@
-// ===== CALENDRIER UNIFIÉ — Jour / Semaine / Mois =====
+// ===== CALENDRIER UNIFIÉ — Jour / 3 Jours / Semaine / Mois =====
 
 // Noms français
 const JOURS_COURTS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -8,23 +8,20 @@ const MOIS_NOMS = [
     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
-// Bornes par défaut de la timeline (si aucune tâche ne déborde)
-const TL_HEURE_DEBUT   = 5;           // 5h00
-const TL_HEURE_FIN     = 24;          // 00h00 (minuit)
+// Bornes par défaut de la timeline
+const TL_HEURE_DEBUT   = 5;
+const TL_HEURE_FIN     = 24;
 const TL_MIN_DEBUT     = TL_HEURE_DEBUT * 60;
-const TL_PX_MIN_JOUR   = 0.7;         // vue jour : 0.7px/min → 1h = 42px
-const TL_PX_MIN_SEM    = 0.7;         // vue semaine : 0.7px/min → 1h = 42px
+const TL_PX_MIN_JOUR   = 0.7;
+const TL_PX_MIN_SEM    = 0.7;
 
 /**
- * Calcule la plage horaire optimale (début/fin en heures entières).
- * Les bornes par défaut (5h–24h) ne sont ajustées QUE si une tâche
- * sort effectivement de ces limites. Pas de marge ajoutée sinon.
- * @param {Array} tachesAvecHeure - tâches ayant un champ heure_debut
- * @returns {{ debut: number, fin: number }}
+ * Calcule la plage horaire optimale selon les tâches planifiées.
+ * N'ajuste les bornes que si une tâche dépasse les valeurs par défaut.
  */
 function calculerPlageHoraire(tachesAvecHeure) {
-    let heureMin = TL_HEURE_DEBUT;  // 5h par défaut
-    let heureMax = TL_HEURE_FIN;    // 24h par défaut
+    let heureMin = TL_HEURE_DEBUT;
+    let heureMax = TL_HEURE_FIN;
 
     tachesAvecHeure.forEach(t => {
         if (!t.heure_debut) return;
@@ -33,7 +30,6 @@ function calculerPlageHoraire(tachesAvecHeure) {
         const hDebut   = Math.floor(minDebut / 60);
         const hFin     = Math.ceil(minFin   / 60);
 
-        // N'ajuster que si la tâche dépasse les bornes par défaut
         if (hDebut < heureMin) heureMin = Math.max(0,  hDebut - 1);
         if (hFin   > heureMax) heureMax = Math.min(25, hFin   + 1);
     });
@@ -49,7 +45,6 @@ let dateActuelle = new Date();
 // ===== INITIALISATION =====
 
 document.addEventListener('DOMContentLoaded', () => {
-    // changerVue initialise aussi la visibilité du bouton ⚙ Pauses et du champ heure-debut
     changerVue('jour');
 });
 
@@ -58,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function naviguer(direction) {
     if (vueActuelle === 'jour') {
         dateActuelle.setDate(dateActuelle.getDate() + direction);
+    } else if (vueActuelle === '3jours') {
+        dateActuelle.setDate(dateActuelle.getDate() + direction * 3);
     } else if (vueActuelle === 'semaine') {
         dateActuelle.setDate(dateActuelle.getDate() + direction * 7);
     } else {
@@ -73,19 +70,21 @@ function allerAujourdhui() {
 
 function changerVue(nouvelle) {
     vueActuelle = nouvelle;
-    ['jour', 'semaine', 'mois'].forEach(v => {
-        document.getElementById(`btn-vue-${v}`).classList.toggle('actif', v === nouvelle);
+    ['jour', '3jours', 'semaine', 'mois'].forEach(v => {
+        const btn = document.getElementById(`btn-vue-${v}`);
+        if (btn) btn.classList.toggle('actif', v === nouvelle);
     });
-    // Bouton config visible uniquement en jour/semaine
+    // Bouton config visible sauf en vue mois
     document.getElementById('btn-config-journee').style.display =
         nouvelle === 'mois' ? 'none' : '';
     rendreCalerendrier();
 }
 
 function rendreCalerendrier() {
-    if (vueActuelle === 'jour')    rendreJour();
+    if      (vueActuelle === 'jour')    rendreJour();
+    else if (vueActuelle === '3jours')  rendreTroisJours();
     else if (vueActuelle === 'semaine') rendreSemaine();
-    else rendreMois();
+    else                                rendreMois();
 }
 
 // ============================================================
@@ -97,30 +96,34 @@ function rendreJour() {
     const aujourd_hui = formaterDateISO(new Date());
     const estAujourd_hui = dateISO === aujourd_hui;
 
-    // Titre
     const label = `${JOURS_LONGS[(dateActuelle.getDay() + 6) % 7]} ${dateActuelle.getDate()} ${MOIS_NOMS[dateActuelle.getMonth()]} ${dateActuelle.getFullYear()}`;
     document.getElementById('titre-periode').textContent = estAujourd_hui ? `☀ Aujourd'hui — ${label}` : label;
 
-    // Tâches du jour
     const tachesJour = taches.filter(t => t.date_echeance === dateISO);
-    const planifiees  = tachesJour.filter(t => t.heure_debut);
-    const nonPlanif   = tachesJour.filter(t => !t.heure_debut);
+    const planifiees = tachesJour.filter(t => t.heure_debut);
+    const nonPlanif  = tachesJour.filter(t => !t.heure_debut);
 
     const conteneur = document.getElementById('calendrier-conteneur');
     conteneur.innerHTML = '';
     conteneur.className = 'today-layout';
 
-    // Panneau gauche
-    const panneau = creerPanneauNonPlanifiees(nonPlanif, dateISO);
-    conteneur.appendChild(panneau);
+    conteneur.appendChild(creerPanneauNonPlanifiees(nonPlanif, dateISO));
 
-    // Timeline — plage adaptée aux tâches du jour
     const plage = calculerPlageHoraire(planifiees);
     const tlConteneur = document.createElement('div');
     tlConteneur.className = 'today-timeline-conteneur';
-    const tl = construireTimeline(TL_PX_MIN_JOUR, planifiees, estAujourd_hui, dateISO, plage.debut, plage.fin);
-    tlConteneur.appendChild(tl);
+    tlConteneur.appendChild(
+        construireTimeline(TL_PX_MIN_JOUR, planifiees, estAujourd_hui, dateISO, plage.debut, plage.fin)
+    );
     conteneur.appendChild(tlConteneur);
+}
+
+// ============================================================
+// VUE 3 JOURS
+// ============================================================
+
+function rendreTroisJours() {
+    rendreVueMultiJours(new Date(dateActuelle), 3);
 }
 
 // ============================================================
@@ -128,98 +131,112 @@ function rendreJour() {
 // ============================================================
 
 function rendreSemaine() {
-    // Trouver le lundi
     const jourSemaine = dateActuelle.getDay();
     const decalage = jourSemaine === 0 ? -6 : 1 - jourSemaine;
     const lundi = new Date(dateActuelle);
     lundi.setDate(dateActuelle.getDate() + decalage);
-    const dimanche = new Date(lundi);
-    dimanche.setDate(lundi.getDate() + 6);
+    rendreVueMultiJours(lundi, 7);
+}
 
+// ============================================================
+// VUE MULTI-JOURS PARTAGÉE (3 jours + Semaine)
+// ============================================================
+
+function rendreVueMultiJours(premierJour, nbJours) {
+    const dernierJour = new Date(premierJour);
+    dernierJour.setDate(premierJour.getDate() + nbJours - 1);
     const today = formaterDateISO(new Date());
 
-    // Titre
-    const deb = `${lundi.getDate()} ${MOIS_NOMS[lundi.getMonth()].substring(0, 3)}.`;
-    const fin = `${dimanche.getDate()} ${MOIS_NOMS[dimanche.getMonth()].substring(0, 3)}. ${dimanche.getFullYear()}`;
+    // Titre de la période
+    const deb = `${premierJour.getDate()} ${MOIS_NOMS[premierJour.getMonth()].substring(0, 3)}.`;
+    const fin = `${dernierJour.getDate()} ${MOIS_NOMS[dernierJour.getMonth()].substring(0, 3)}. ${dernierJour.getFullYear()}`;
     document.getElementById('titre-periode').textContent = `${deb} – ${fin}`;
+
+    // Collecter les infos par jour
+    const joursInfos = [];
+    for (let i = 0; i < nbJours; i++) {
+        const d = new Date(premierJour);
+        d.setDate(premierJour.getDate() + i);
+        const iso = formaterDateISO(d);
+        const tachesJour = taches.filter(t => t.date_echeance === iso);
+        joursInfos.push({
+            date: d,
+            iso,
+            label: `${JOURS_COURTS[(d.getDay() + 6) % 7]} ${d.getDate()}`,
+            planifiees: tachesJour.filter(t => t.heure_debut),
+            nonPlanif:  tachesJour.filter(t => !t.heure_debut),
+        });
+    }
+
+    // Plage horaire sur toute la période
+    const tousesPlanifiees = joursInfos.flatMap(j => j.planifiees);
+    const plage = calculerPlageHoraire(tousesPlanifiees);
+    const heureDebut    = plage.debut;
+    const heureFin      = plage.fin;
+    const minDebut      = heureDebut * 60;
+    const hauteurTotale = (heureFin - heureDebut) * 60 * TL_PX_MIN_SEM;
 
     const conteneur = document.getElementById('calendrier-conteneur');
     conteneur.innerHTML = '';
-    conteneur.className = '';
+    conteneur.className = 'today-layout';
+
+    // ── Panneau non planifiées (gauche) ──
+    conteneur.appendChild(creerPanneauNonPlanifieesMulti(joursInfos));
+
+    // ── Timeline (droite) ──
+    const scroll = document.createElement('div');
+    scroll.className = 'semaine-tl-scroll';
 
     const wrapper = document.createElement('div');
     wrapper.className = 'semaine-tl-wrapper';
 
-    // Calculer la plage horaire sur les 7 jours de la semaine
-    const tachesSemaine = [];
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(lundi);
-        d.setDate(lundi.getDate() + i);
-        const iso = formaterDateISO(d);
-        taches.filter(t => t.date_echeance === iso && t.heure_debut).forEach(t => tachesSemaine.push(t));
-    }
-    const plage = calculerPlageHoraire(tachesSemaine);
-    const heureDebut = plage.debut;
-    const heureFin   = plage.fin;
-    const minDebut   = heureDebut * 60;
-
-    // Colonne des heures (fixe à gauche)
+    // Colonne des heures avec spacer pour s'aligner sous l'entête
     const colonneHeures = document.createElement('div');
     colonneHeures.className = 'semaine-tl-heures';
-    const hauteurTotale = (heureFin - heureDebut) * 60 * TL_PX_MIN_SEM;
 
-    for (let h = heureDebut; h <= heureFin; h++) {
+    // Spacer : même hauteur que semaine-tl-entete
+    const spacer = document.createElement('div');
+    spacer.className = 'semaine-tl-entete semaine-tl-heures-spacer';
+    colonneHeures.appendChild(spacer);
+
+    // Container pour les labels d'heures (position relative, hauteur fixe)
+    const labelsContainer = document.createElement('div');
+    labelsContainer.style.cssText = `position: relative; height: ${hauteurTotale}px; overflow: hidden;`;
+
+    for (let h = heureDebut; h < heureFin; h++) {
         const label = document.createElement('div');
         label.className = 'semaine-tl-heure-label';
         label.style.top = ((h - heureDebut) * 60 * TL_PX_MIN_SEM) + 'px';
         label.textContent = `${String(h % 24).padStart(2, '0')}:00`;
-        colonneHeures.appendChild(label);
+        labelsContainer.appendChild(label);
     }
-    colonneHeures.style.height = hauteurTotale + 'px';
+    colonneHeures.appendChild(labelsContainer);
     wrapper.appendChild(colonneHeures);
 
-    // 7 colonnes de jours
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(lundi);
-        date.setDate(lundi.getDate() + i);
-        const dateISO = formaterDateISO(date);
-        const estAujourd_hui = dateISO === today;
+    // Colonnes de jours
+    joursInfos.forEach(({ date, iso, label, planifiees, nonPlanif }) => {
+        const estAujourd_hui = iso === today;
 
         const colonne = document.createElement('div');
         colonne.className = 'semaine-tl-colonne';
 
-        // En-tête du jour (cliquable → vue jour)
+        // En-tête cliquable → vue jour
         const entete = document.createElement('div');
         entete.className = 'semaine-tl-entete' + (estAujourd_hui ? ' aujourd-hui' : '');
-        entete.textContent = `${JOURS_COURTS[i]} ${date.getDate()}`;
+        entete.textContent = label;
         entete.addEventListener('click', () => {
             dateActuelle = new Date(date);
             changerVue('jour');
         });
         colonne.appendChild(entete);
 
-        // Tâches non planifiées du jour (chips en haut)
-        const nonPlanif = taches.filter(t => t.date_echeance === dateISO && !t.heure_debut);
-        if (nonPlanif.length > 0) {
-            const chipsDiv = document.createElement('div');
-            chipsDiv.className = 'semaine-tl-chips';
-            nonPlanif.forEach(t => {
-                const chip = document.createElement('div');
-                chip.className = `tache-cal zone-${t.zone.replace(/_/g, '-')}`;
-                chip.textContent = t.titre;
-                chip.addEventListener('click', () => ouvrirModal(t));
-                chipsDiv.appendChild(chip);
-            });
-            colonne.appendChild(chipsDiv);
-        }
-
-        // Zone timeline de la colonne
+        // Zone timeline
         const zone = document.createElement('div');
         zone.className = 'semaine-tl-zone';
         zone.style.height = hauteurTotale + 'px';
 
-        // Lignes d'heures
-        for (let h = heureDebut; h <= heureFin; h++) {
+        // Lignes d'heures (h < heureFin pour éviter le dépassement)
+        for (let h = heureDebut; h < heureFin; h++) {
             const ligne = document.createElement('div');
             ligne.className = 'semaine-tl-ligne-heure';
             ligne.style.top = ((h - heureDebut) * 60 * TL_PX_MIN_SEM) + 'px';
@@ -230,11 +247,7 @@ function rendreSemaine() {
         creerBlocsPauses(zone, TL_PX_MIN_SEM, true, minDebut, heureFin);
 
         // Tâches planifiées
-        const planifiees = taches.filter(t => t.date_echeance === dateISO && t.heure_debut);
-        planifiees.forEach(t => {
-            const bloc = creerBlocTache(t, TL_PX_MIN_SEM, minDebut);
-            zone.appendChild(bloc);
-        });
+        planifiees.forEach(t => zone.appendChild(creerBlocTache(t, TL_PX_MIN_SEM, minDebut)));
 
         // Clic sur créneau libre → créer tâche
         zone.addEventListener('click', e => {
@@ -243,10 +256,10 @@ function rendreSemaine() {
             const y = e.clientY - rect.top;
             const minutes = minDebut + Math.round(y / TL_PX_MIN_SEM / 15) * 15;
             ouvrirModal(null, null, minutesVersHeure(minutes));
-            setTimeout(() => { document.getElementById('tache-date').value = dateISO; }, 50);
+            setTimeout(() => { document.getElementById('tache-date').value = iso; }, 50);
         });
 
-        // Indicateur maintenant
+        // Indicateur "maintenant"
         if (estAujourd_hui) {
             const maint = new Date();
             const minMaint = maint.getHours() * 60 + maint.getMinutes();
@@ -260,13 +273,10 @@ function rendreSemaine() {
 
         colonne.appendChild(zone);
         wrapper.appendChild(colonne);
-    }
+    });
 
-    const scroll = document.createElement('div');
-    scroll.className = 'semaine-tl-scroll';
     scroll.appendChild(wrapper);
     conteneur.appendChild(scroll);
-
 }
 
 // ============================================================
@@ -288,7 +298,6 @@ function rendreMois() {
     conteneur.innerHTML = '';
     conteneur.className = 'calendrier-grille';
 
-    // En-têtes
     const entetes = document.createElement('div');
     entetes.className = 'calendrier-entetes';
     JOURS_COURTS.forEach(j => {
@@ -302,19 +311,16 @@ function rendreMois() {
     const grille = document.createElement('div');
     grille.className = 'calendrier-jours';
 
-    // Jours mois précédent
     const moisPrec = new Date(annee, mois, 0);
     for (let i = debutSemaine - 1; i >= 0; i--) {
         grille.appendChild(creerCelluleMois(new Date(annee, mois - 1, moisPrec.getDate() - i), true, false));
     }
 
-    // Jours du mois
     for (let j = 1; j <= dernierJour; j++) {
         const d = new Date(annee, mois, j);
         grille.appendChild(creerCelluleMois(d, false, d.getTime() === aujourd_hui.getTime()));
     }
 
-    // Compléter
     const reste = grille.children.length % 7;
     if (reste > 0) {
         for (let j = 1; j <= 7 - reste; j++) {
@@ -350,8 +356,8 @@ function creerCelluleMois(date, autreMois, estAujourd_hui) {
 
     cellule.addEventListener('click', e => {
         if (!autreMois && (e.target === cellule || e.target === num || e.target === divTaches)) {
-            ouvrirModal(null, null);
-            setTimeout(() => { document.getElementById('tache-date').value = dateISO; }, 50);
+            dateActuelle = new Date(date);
+            changerVue('jour');
         }
     });
 
@@ -359,7 +365,7 @@ function creerCelluleMois(date, autreMois, estAujourd_hui) {
 }
 
 // ============================================================
-// CONSTRUCTION TIMELINE (partagée Jour + Semaine)
+// CONSTRUCTION TIMELINE (vue Jour)
 // ============================================================
 
 function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO,
@@ -371,10 +377,9 @@ function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO,
     tl.className = 'timeline';
     tl.style.height = hauteurTotale + 'px';
 
-    // Marqueurs d'heures
-    for (let h = heureDebut; h <= heureFin; h++) {
+    // Marqueurs d'heures (h < heureFin pour éviter le dépassement)
+    for (let h = heureDebut; h < heureFin; h++) {
         for (let m = 0; m < 60; m += 30) {
-            if (h === heureFin && m > 0) break;
             const minutes = h * 60 + m;
             const top = (minutes - minDebut) * pxParMin;
 
@@ -412,7 +417,7 @@ function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO,
     // Tâches planifiées
     planifiees.forEach(t => tl.appendChild(creerBlocTache(t, pxParMin, minDebut)));
 
-    // Indicateur maintenant
+    // Indicateur "maintenant"
     if (estAujourd_hui) {
         const maint = new Date();
         const min = maint.getHours() * 60 + maint.getMinutes();
@@ -434,11 +439,10 @@ function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO,
 function creerBlocsPauses(conteneur, pxParMin, compact,
                           minDebut = TL_MIN_DEBUT, heureFin = TL_HEURE_FIN) {
     const pauses = [
-        { label: '🌅 Réveil & routine', heure: configJournee.heure_reveil,   duree: configJournee.duree_routine_matin, classe: 'pause-matin'    },
-        { label: '🍽 Déjeuner',          heure: configJournee.heure_dejeuner,  duree: configJournee.duree_dejeuner,      classe: 'pause-dejeuner' },
-        { label: '🌙 Dîner',             heure: configJournee.heure_diner,     duree: configJournee.duree_diner,         classe: 'pause-diner'    },
+        { label: '🌅 Réveil & routine', heure: configJournee.heure_reveil,  duree: configJournee.duree_routine_matin, classe: 'pause-matin'    },
+        { label: '🍽 Déjeuner',         heure: configJournee.heure_dejeuner, duree: configJournee.duree_dejeuner,      classe: 'pause-dejeuner' },
+        { label: '🌙 Dîner',            heure: configJournee.heure_diner,    duree: configJournee.duree_diner,         classe: 'pause-diner'    },
     ];
-
     if (configJournee.gouter_actif) {
         pauses.push({ label: '🍰 Goûter', heure: configJournee.heure_gouter, duree: configJournee.duree_gouter, classe: 'pause-gouter' });
     }
@@ -447,7 +451,6 @@ function creerBlocsPauses(conteneur, pxParMin, compact,
         if (!p.heure || !p.duree) return;
         const min = heureVersMinutes(p.heure);
         if (min < minDebut || min >= heureFin * 60) return;
-
         const bloc = document.createElement('div');
         bloc.className = `bloc-pause ${p.classe}`;
         bloc.style.top    = ((min - minDebut) * pxParMin) + 'px';
@@ -465,8 +468,7 @@ function creerBlocTache(tache, pxParMin, minDebut = TL_MIN_DEBUT) {
 
     const classes = {
         urgent_important: 'zone-bloc-rouge', important: 'zone-bloc-bleu',
-        urgent: 'zone-bloc-ambre', neutre: 'zone-bloc-gris',
-        en_cours: 'zone-bloc-orange', fait: 'zone-bloc-vert',
+        urgent: 'zone-bloc-ambre', neutre: 'zone-bloc-gris', fait: 'zone-bloc-vert',
     };
 
     const bloc = document.createElement('div');
@@ -485,7 +487,7 @@ function creerBlocTache(tache, pxParMin, minDebut = TL_MIN_DEBUT) {
 }
 
 // ============================================================
-// PANNEAU TÂCHES NON PLANIFIÉES (vue jour)
+// PANNEAU TÂCHES NON PLANIFIÉES
 // ============================================================
 
 function creerPanneauNonPlanifiees(nonPlanif, dateISO) {
@@ -504,17 +506,7 @@ function creerPanneauNonPlanifiees(nonPlanif, dateISO) {
         liste.innerHTML = '<p style="font-size:0.82rem;color:var(--texte-secondaire);text-align:center;padding:0.75rem 0;">Toutes planifiées !</p>';
     } else {
         nonPlanif.forEach(t => {
-            const carte = document.createElement('div');
-            carte.className = 'carte-panneau';
-            carte.innerHTML = `
-                <div class="carte-panneau-point zone-point-${t.zone.replace(/_/g, '-')}"></div>
-                <div class="carte-panneau-info">
-                    <div class="carte-panneau-titre">${echapper(t.titre)}</div>
-                    ${t.duree_estimee ? `<div class="carte-panneau-duree">⏱ ${t.duree_estimee} min</div>` : ''}
-                </div>
-                <button class="btn-action btn-modifier" onclick="ouvrirModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">✏</button>
-            `;
-            liste.appendChild(carte);
+            liste.appendChild(creerCartePanneau(t));
         });
     }
     panneau.appendChild(liste);
@@ -530,6 +522,59 @@ function creerPanneauNonPlanifiees(nonPlanif, dateISO) {
     panneau.appendChild(btnAjouter);
 
     return panneau;
+}
+
+/**
+ * Panneau non planifiées pour les vues multi-jours (semaine, 3 jours).
+ * Regroupe les tâches par jour.
+ */
+function creerPanneauNonPlanifieesMulti(joursInfos) {
+    const panneau = document.createElement('div');
+    panneau.className = 'today-panneau';
+
+    const titre = document.createElement('div');
+    titre.className = 'panneau-titre';
+    titre.textContent = '📋 Non planifiées';
+    panneau.appendChild(titre);
+
+    const liste = document.createElement('div');
+    liste.className = 'panneau-taches';
+
+    let total = 0;
+    joursInfos.forEach(({ iso, label, nonPlanif }) => {
+        if (nonPlanif.length === 0) return;
+        total += nonPlanif.length;
+
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'panneau-jour-label';
+        labelDiv.textContent = label;
+        liste.appendChild(labelDiv);
+
+        nonPlanif.forEach(t => liste.appendChild(creerCartePanneau(t, iso)));
+    });
+
+    if (total === 0) {
+        liste.innerHTML = '<p style="font-size:0.82rem;color:var(--texte-secondaire);text-align:center;padding:0.75rem 0;">Toutes planifiées !</p>';
+    }
+
+    panneau.appendChild(liste);
+    return panneau;
+}
+
+/** Crée une carte dans le panneau non-planifiées. */
+function creerCartePanneau(t, dateISO) {
+    const carte = document.createElement('div');
+    carte.className = 'carte-panneau';
+    carte.innerHTML = `
+        <div class="carte-panneau-point zone-point-${t.zone.replace(/_/g, '-')}"></div>
+        <div class="carte-panneau-info">
+            <div class="carte-panneau-titre">${echapper(t.titre)}</div>
+            ${t.duree_estimee ? `<div class="carte-panneau-duree">⏱ ${t.duree_estimee} min</div>` : ''}
+        </div>
+        <button class="btn-action btn-modifier"
+                onclick="ouvrirModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">✏</button>
+    `;
+    return carte;
 }
 
 // ============================================================
@@ -598,7 +643,7 @@ async function sauvegarderConfig(e) {
         }
         configJournee = res;
         fermerConfigJournee();
-        rendreCalerendrier(); // Redessiner avec les nouvelles pauses
+        rendreCalerendrier();
     } catch {
         erreurs.textContent = 'Erreur de connexion.';
         erreurs.style.display = 'block';
