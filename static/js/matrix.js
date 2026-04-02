@@ -41,64 +41,58 @@ function creerCarteTache(tache) {
     carte.id = `carte-${tache.id}`;
     carte.draggable = true;
     carte.dataset.id = tache.id;
+    carte.title = tache.titre + (tache.description ? '\n' + tache.description : '');
 
     carte.addEventListener('dragstart', debuterDrag);
     carte.addEventListener('dragend', finirDrag);
 
-    // Badge catégorie
-    const classesBadge = {
-        'Travail': 'badge-travail',
-        'Personnel': 'badge-personnel',
-        'Santé': 'badge-sante',
-        'Autre': 'badge-autre',
+    // Petit point de couleur catégorie
+    const classesDot = {
+        'Travail': 'cat-dot-travail',
+        'Personnel': 'cat-dot-personnel',
+        'Santé': 'cat-dot-sante',
+        'Autre': 'cat-dot-autre',
     };
-    const classeBadge = classesBadge[tache.categorie] || 'badge-autre';
+    const classeDot = classesDot[tache.categorie] || 'cat-dot-autre';
 
-    // Date d'échéance
+    // Date d'échéance (format court : jj/mm ou ⚠ Xj)
     let htmlDate = '';
     if (tache.date_echeance) {
         const dateEch = new Date(tache.date_echeance + 'T00:00:00');
-        const aujourd_hui = new Date();
-        aujourd_hui.setHours(0, 0, 0, 0);
-        const enRetard = dateEch < aujourd_hui;
-        const dateFormatee = dateEch.toLocaleDateString('fr-FR', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        });
-        htmlDate = `<span class="carte-tache-date ${enRetard ? 'en-retard' : ''}">
-            📅 ${enRetard ? '⚠ ' : ''}${dateFormatee}
-        </span>`;
+        const aujourdhui = new Date();
+        aujourdhui.setHours(0, 0, 0, 0);
+        const joursRetard = Math.round((aujourdhui - dateEch) / 86400000);
+        if (joursRetard > 0) {
+            htmlDate = `<span class="carte-tache-date en-retard" title="En retard de ${joursRetard} jour(s)">⚠ ${joursRetard}j</span>`;
+        } else {
+            const dateFormatee = dateEch.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+            htmlDate = `<span class="carte-tache-date">📅 ${dateFormatee}</span>`;
+        }
     }
 
-    // Durée estimée
+    // Durée (format court : 30m ou 1h30)
     let htmlDuree = '';
     if (tache.duree_estimee) {
-        const heures = Math.floor(tache.duree_estimee / 60);
-        const minutes = tache.duree_estimee % 60;
-        htmlDuree = `<span class="carte-tache-duree">⏱ ${
-            heures > 0 ? `${heures}h${String(minutes).padStart(2, '0')}` : `${minutes} min`
-        }</span>`;
+        const h = Math.floor(tache.duree_estimee / 60);
+        const m = tache.duree_estimee % 60;
+        const dureeTexte = h > 0 ? `${h}h${m > 0 ? String(m).padStart(2,'0') : ''}` : `${m}m`;
+        htmlDuree = `<span class="carte-tache-duree">⏱ ${dureeTexte}</span>`;
     }
 
     carte.innerHTML = `
-        <div class="carte-tache-titre">${echapper(tache.titre)}</div>
+        <span class="carte-cat-dot ${classeDot}"></span>
+        <span class="carte-tache-titre">${echapper(tache.titre)}</span>
         <div class="carte-tache-meta">
-            <span class="badge ${classeBadge}">${echapper(tache.categorie)}</span>
             ${htmlDate}
             ${htmlDuree}
         </div>
         <div class="carte-tache-actions">
             <button class="btn-action btn-fait-rapide" title="Marquer comme fait"
-                    onclick="marquerFaitMatrice(${tache.id}); event.stopPropagation();">
-                ✅
-            </button>
-            <button class="btn-action btn-modifier"
-                    onclick="ouvrirModification(${tache.id}); event.stopPropagation();">
-                ✏ Modifier
-            </button>
-            <button class="btn-action btn-corbeille"
-                    onclick="deplacerCorbeille(${tache.id}); event.stopPropagation();">
-                🗑
-            </button>
+                    onclick="marquerFaitMatrice(${tache.id}); event.stopPropagation();">✅</button>
+            <button class="btn-action btn-modifier" title="Modifier"
+                    onclick="ouvrirModification(${tache.id}); event.stopPropagation();">✏</button>
+            <button class="btn-action btn-corbeille" title="Corbeille"
+                    onclick="deplacerCorbeille(${tache.id}); event.stopPropagation();">🗑</button>
         </div>
     `;
 

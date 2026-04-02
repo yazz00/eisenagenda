@@ -315,20 +315,24 @@ h1.titre-page {
 .zone[data-zone="fait"] { border-top-color: var(--vert); }
 .zone[data-zone="fait"] .zone-titre { color: var(--vert); }
 
-/* ===== CARTE DE TÂCHE ===== */
+/* ===== CARTE DE TÂCHE (ligne compacte) ===== */
 .carte-tache {
     background: var(--fond);
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
     cursor: grab;
-    transition: box-shadow 0.15s, transform 0.1s;
+    transition: box-shadow 0.15s, background 0.1s;
     user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 34px;
 }
 
 .carte-tache:hover {
-    box-shadow: var(--ombre);
-    transform: translateY(-1px);
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
 .carte-tache.dragging {
@@ -336,22 +340,82 @@ h1.titre-page {
     cursor: grabbing;
 }
 
+/* Indicateur catégorie (petit point coloré) */
+.carte-cat-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.cat-dot-travail  { background: #3b82f6; }
+.cat-dot-personnel{ background: #ec4899; }
+.cat-dot-sante    { background: #10b981; }
+.cat-dot-autre    { background: #9ca3af; }
+
+/* Titre : prend tout l'espace disponible */
 .carte-tache-titre {
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 0.35rem;
-    line-height: 1.3;
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
     color: var(--texte);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
 }
 
+/* Méta inline : date + durée */
 .carte-tache-meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-bottom: 0.4rem;
     align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
 }
 
+.carte-tache-date {
+    font-size: 0.72rem;
+    color: var(--texte-secondaire);
+    white-space: nowrap;
+}
+
+.carte-tache-date.en-retard {
+    color: var(--rouge);
+    font-weight: 700;
+}
+
+.carte-tache-duree {
+    font-size: 0.72rem;
+    color: var(--texte-secondaire);
+    white-space: nowrap;
+}
+
+/* Actions : toujours visibles */
+.carte-tache-actions {
+    display: flex;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.btn-action {
+    font-size: 0.78rem;
+    padding: 0.18rem 0.4rem;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.12s;
+    line-height: 1;
+    background: transparent;
+    color: var(--texte-secondaire);
+}
+
+.btn-action:hover { background: #e2e8f0; color: var(--texte); }
+
+.btn-modifier:hover { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
+.btn-corbeille:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.btn-fait-rapide:hover { background: #dcfce7; color: #16a34a; border-color: #bbf7d0; }
+
+/* Badge catégorie (conservé pour autres usages) */
 .badge {
     font-size: 0.7rem;
     font-weight: 600;
@@ -359,57 +423,10 @@ h1.titre-page {
     border-radius: 99px;
     white-space: nowrap;
 }
-
-.badge-travail { background: #dbeafe; color: #1d4ed8; }
+.badge-travail   { background: #dbeafe; color: #1d4ed8; }
 .badge-personnel { background: #fce7f3; color: #be185d; }
-.badge-sante { background: #d1fae5; color: #065f46; }
-.badge-autre { background: #f3f4f6; color: #374151; }
-
-.carte-tache-date {
-    font-size: 0.75rem;
-    color: var(--texte-secondaire);
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-}
-
-.carte-tache-date.en-retard {
-    color: var(--rouge);
-    font-weight: 600;
-}
-
-.carte-tache-duree {
-    font-size: 0.75rem;
-    color: var(--texte-secondaire);
-}
-
-.carte-tache-actions {
-    display: flex;
-    gap: 0.35rem;
-    margin-top: 0.4rem;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.carte-tache:hover .carte-tache-actions {
-    opacity: 1;
-}
-
-.btn-action {
-    font-size: 0.72rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 5px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.15s;
-}
-
-.btn-modifier { background: #e0e7ff; color: #4338ca; }
-.btn-modifier:hover { background: #c7d2fe; }
-
-.btn-corbeille { background: #fee2e2; color: #dc2626; }
-.btn-corbeille:hover { background: #fecaca; }
+.badge-sante     { background: #d1fae5; color: #065f46; }
+.badge-autre     { background: #f3f4f6; color: #374151; }
 
 /* ===== MODAL FORMULAIRE ===== */
 .modal-overlay {
@@ -2535,17 +2552,3 @@ h1.titre-page {
 .db-section .zone[data-zone="urgent"]           { background: #fffcf0; }
 .db-section .zone[data-zone="neutre"]           { background: #f8fafc; }
 
-/* Bouton ✅ rapide sur les cartes de la matrice */
-.btn-fait-rapide {
-    background: #dcfce7;
-    color: #16a34a;
-    font-size: 0.85rem;
-    padding: 0.2rem 0.45rem;
-    border-radius: 5px;
-    border: 1px solid #bbf7d0;
-    cursor: pointer;
-    transition: background 0.1s;
-}
-.btn-fait-rapide:hover {
-    background: #bbf7d0;
-}

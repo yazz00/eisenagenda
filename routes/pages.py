@@ -44,7 +44,8 @@ def page_tableau_de_bord():
     aujourd_hui = date.today()
 
     # ── Tâche focus : zone la plus prioritaire, retards d'abord ──
-    zones_priorite = ['urgent_important', 'en_cours', 'important', 'urgent', 'neutre']
+    # Les tâches SANS date ne deviennent jamais le focus (elles restent dans le backlog)
+    zones_priorite = ['urgent_important', 'important', 'urgent', 'neutre']
     tache_focus = None
 
     # 1) Retards (date dépassée) par ordre de priorité de zone
@@ -58,10 +59,14 @@ def page_tableau_de_bord():
             tache_focus = t
             break
 
-    # 2) Sinon : n'importe quelle tâche active (sans date ou future)
+    # 2) Sinon : tâches avec date à venir (prochaine échéance)
     if not tache_focus:
         for zone in zones_priorite:
-            t = Task.query.filter(Task.zone == zone).first()
+            t = Task.query.filter(
+                Task.zone == zone,
+                Task.date_echeance.isnot(None),
+                Task.date_echeance > aujourd_hui
+            ).order_by(Task.date_echeance.asc()).first()
             if t:
                 tache_focus = t
                 break
