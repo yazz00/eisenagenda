@@ -17,10 +17,9 @@ def page_accueil():
 
 @pages_bp.route('/matrix')
 def page_matrice():
-    """Page Matrice Eisenhower."""
-    taches = Task.query.filter(Task.zone != 'corbeille').all()
-    taches_json = json.dumps([t.to_dict() for t in taches], ensure_ascii=False)
-    return render_template('matrix.html', taches_json=taches_json)
+    """Redirection vers la vue d'ensemble (matrice + dashboard fusionnés)."""
+    from flask import redirect
+    return redirect('/dashboard')
 
 
 @pages_bp.route('/calendar')
@@ -41,99 +40,66 @@ def page_calendrier():
 
 @pages_bp.route('/dashboard')
 def page_tableau_de_bord():
-    """Page Tableau de bord avec statistiques."""
+    """Page Tableau de bord — Focus, Retards, Backlog."""
     aujourd_hui = date.today()
-    dans_3_jours = aujourd_hui + timedelta(days=3)
 
-    # Tâches urgentes d'aujourd'hui
-    urgentes_auj = Task.query.filter(
-        Task.zone == 'urgent_important',
-        Task.date_echeance == aujourd_hui
-    ).all()
+    # ── Tâche focus : zone la plus prioritaire, retards d'abord ──
+    zones_priorite = ['urgent_important', 'en_cours', 'important', 'urgent', 'neutre']
+    tache_focus = None
 
-    # Tâches en cours
-    en_cours = Task.query.filter_by(zone='en_cours').all()
+    # 1) Retards (date dépassée) par ordre de priorité de zone
+    for zone in zones_priorite:
+        t = Task.query.filter(
+            Task.zone == zone,
+            Task.date_echeance.isnot(None),
+            Task.date_echeance <= aujourd_hui
+        ).order_by(Task.date_echeance.asc()).first()
+        if t:
+            tache_focus = t
+            break
 
-    # Tâches à venir dans les 3 prochains jours (non corbeille, non fait)
-    a_venir = Task.query.filter(
-        Task.zone.notin_(['corbeille', 'fait']),
-        Task.date_echeance > aujourd_hui,
-        Task.date_echeance <= dans_3_jours
-    ).order_by(Task.date_echeance).all()
+    # 2) Sinon : n'importe quelle tâche active (sans date ou future)
+    if not tache_focus:
+        for zone in zones_priorite:
+            t = Task.query.filter(Task.zone == zone).first()
+            if t:
+                tache_focus = t
+                break
 
-    # Temps total estimé pour aujourd'hui (tâches urgentes + en cours)
-    taches_auj = Task.query.filter(
-        Task.zone.notin_(['corbeille', 'fait']),
-        Task.date_echeance == aujourd_hui
-    ).all()
-    temps_total = sum(t.duree_estimee for t in taches_auj if t.duree_estimee)
+    # ── Retards : date passée, pas fait ni corbeille ──
+    retards = Task.query.filter(
+        Task.zone.notin_(['fait', 'corbeille']),
+        Task.date_echeance.isnot(None),
+        Task.date_echeance < aujourd_hui
+    ).order_by(Task.date_echeance.asc()).all()
 
-    # Statistiques de la semaine (7 derniers jours)
-    il_y_a_7_jours = datetime.utcnow().replace(hour=0, minute=0, second=0) - timedelta(days=7)
-    taches_completees_semaine = Task.query.filter(
-        Task.zone == 'fait',
-        Task.date_modification >= il_y_a_7_jours
-    ).count()
-    taches_creees_semaine = Task.query.filter(
-        Task.date_creation >= il_y_a_7_jours
-    ).count()
+    # Exclure la tâche focus des retards (déjà mise en avant)
+    if tache_focus:
+        retards = [t for t in retards if t.id != tache_focus.id]
 
-    # Répartition par catégorie (toutes tâches actives)
-    categories = ['Travail', 'Personnel', 'Santé', 'Autre']
-    repartition_categories = {}
-    total_actives = Task.query.filter(Task.zone != 'corbeille').count()
-    for cat in categories:
-        nb = Task.query.filter(Task.categorie == cat, Task.zone != 'corbeille').count()
-        repartition_categories[cat] = {
-            'nombre': nb,
-            'pourcentage': round((nb / total_actives * 100) if total_actives > 0 else 0)
-        }
+    # ── Backlog : sans date d'échéance, pas fait ni corbeille ──
+    backlog = Task.query.filter(
+        Task.zone.notin_(['fait', 'corbeille']),
+        Task.date_echeance.is_(None)
+    ).order_by(Task.date_creation.asc()).all()
 
-    # Répartition par zone (toutes tâches actives)
-    zones = {
-        'urgent_important': '🔴 Urgent + Important',
-        'important': '🔵 Important',
-        'urgent': '🟡 Urgent',
-        'neutre': '⚫ Neutre',
-        'en_cours': '⏳ En cours',
-        'fait': '✅ Fait',
-    }
-    repartition_zones = {}
-    for zone_key, zone_label in zones.items():
-        nb = Task.query.filter_by(zone=zone_key).count()
-        repartition_zones[zone_key] = {
-            'label': zone_label,
-            'nombre': nb,
-            'pourcentage': round((nb / total_actives * 100) if total_actives > 0 else 0)
-        }
+    if tache_focus:
+        backlog = [t for t in backlog if t.id != tache_focus.id]
 
-    # Tâche la plus urgente (date la plus proche, zone urgent_important)
-    tache_urgente = Task.query.filter(
-        Task.zone == 'urgent_important',
-        Task.date_echeance.isnot(None)
-    ).order_by(Task.date_echeance).first()
+    # Projets pour enrichir l'affichage
+    projets = {p.id: p for p in Project.query.all()}
 
-    # Progression du jour (tâches faites / total avec date aujourd'hui)
-    total_auj = Task.query.filter(Task.date_echeance == aujourd_hui).count()
-    faites_auj = Task.query.filter(
-        Task.zone == 'fait',
-        Task.date_echeance == aujourd_hui
-    ).count()
-    progression_jour = round((faites_auj / total_auj * 100) if total_auj > 0 else 0)
+    # Toutes les tâches actives pour la matrice Eisenhower
+    toutes_taches = Task.query.filter(Task.zone.notin_(['corbeille'])).all()
+    taches_json = json.dumps([t.to_dict() for t in toutes_taches], ensure_ascii=False)
 
     return render_template(
         'dashboard.html',
-        urgentes_auj=urgentes_auj,
-        en_cours=en_cours,
-        a_venir=a_venir,
-        temps_total=temps_total,
-        taches_completees_semaine=taches_completees_semaine,
-        taches_creees_semaine=taches_creees_semaine,
-        repartition_categories=repartition_categories,
-        repartition_zones=repartition_zones,
-        tache_urgente=tache_urgente,
-        progression_jour=progression_jour,
-        total_actives=total_actives,
+        tache_focus=tache_focus,
+        retards=retards,
+        backlog=backlog,
+        projets=projets,
+        taches_json=taches_json,
         aujourd_hui=aujourd_hui,
     )
 

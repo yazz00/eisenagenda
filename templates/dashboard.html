@@ -3,194 +3,290 @@
 {% block titre %}Tableau de bord — EisenAgenda{% endblock %}
 
 {% block content %}
-<h1 class="titre-page">📊 Tableau de bord</h1>
 
-<!-- Tâche la plus urgente mise en avant -->
-{% if tache_urgente %}
-<div class="tache-urgente-mise-en-avant">
-    <div class="label-urgent">🔴 Tâche la plus urgente</div>
-    <div class="titre-urgent">{{ tache_urgente.titre }}</div>
-    {% if tache_urgente.date_echeance %}
-    <div style="font-size:0.82rem; color:#9f1239; margin-top:0.25rem;">
-        Échéance : {{ tache_urgente.date_echeance.strftime('%d/%m/%Y') }}
-    </div>
-    {% endif %}
-</div>
-{% endif %}
+<div class="db-page">
 
-<!-- Tuiles de résumé -->
-<div class="dashboard-grille">
-
-    <!-- Horloge -->
-    <div class="tuile">
-        <div class="tuile-icone">🕐</div>
-        <div class="horloge" id="horloge">--:--:--</div>
-        <div class="horloge-date" id="horloge-date">{{ aujourd_hui.strftime('%A %d %B %Y') }}</div>
-    </div>
-
-    <!-- Tâches urgentes aujourd'hui -->
-    <div class="tuile tuile-rouge">
-        <div class="tuile-icone">🔴</div>
-        <div class="tuile-nombre">{{ urgentes_auj | length }}</div>
-        <div class="tuile-label">Urgentes aujourd'hui</div>
-    </div>
-
-    <!-- En cours -->
-    <div class="tuile tuile-orange">
-        <div class="tuile-icone">⏳</div>
-        <div class="tuile-nombre">{{ en_cours | length }}</div>
-        <div class="tuile-label">En cours</div>
-    </div>
-
-    <!-- À venir (3 jours) -->
-    <div class="tuile tuile-bleu">
-        <div class="tuile-icone">📅</div>
-        <div class="tuile-nombre">{{ a_venir | length }}</div>
-        <div class="tuile-label">À venir (3 jours)</div>
-    </div>
-
-    <!-- Temps estimé aujourd'hui -->
-    <div class="tuile tuile-vert">
-        <div class="tuile-icone">⏱</div>
-        <div class="tuile-nombre">
-            {% if temps_total >= 60 %}
-                {{ (temps_total // 60) }}h{{ '%02d' % (temps_total % 60) }}
-            {% else %}
-                {{ temps_total }}min
+    <!-- ===== FOCUS MAINTENANT ===== -->
+    <section class="db-section">
+        <div class="db-section-entete">
+            <h2 class="db-section-titre">🎯 Focus maintenant</h2>
+            {% if tache_focus %}
+            <span class="db-section-hint">La tâche la plus prioritaire à traiter</span>
             {% endif %}
         </div>
-        <div class="tuile-label">Temps estimé aujourd'hui</div>
-    </div>
 
-    <!-- Complétées cette semaine -->
-    <div class="tuile tuile-vert">
-        <div class="tuile-icone">✅</div>
-        <div class="tuile-nombre">{{ taches_completees_semaine }}</div>
-        <div class="tuile-label">Complétées cette semaine</div>
-    </div>
+        {% if tache_focus %}
+        {% set jours_retard = (aujourd_hui - tache_focus.date_echeance).days if tache_focus.date_echeance and tache_focus.date_echeance < aujourd_hui else 0 %}
+        <div class="db-focus-carte db-focus-zone-{{ tache_focus.zone | replace('_', '-') }}">
+            <div class="db-focus-corps">
+                <div class="db-focus-badges">
+                    <span class="db-zone-badge db-zone-badge-{{ tache_focus.zone | replace('_', '-') }}">
+                        {% if tache_focus.zone == 'urgent_important' %}🔴 Urgent + Important
+                        {% elif tache_focus.zone == 'important' %}🔵 Important
+                        {% elif tache_focus.zone == 'urgent' %}🟡 Urgent
+                        {% elif tache_focus.zone == 'en_cours' %}⏳ En cours
+                        {% else %}⚫ Neutre{% endif %}
+                    </span>
+                    <span class="db-cat-badge">
+                        {% if tache_focus.categorie == 'Travail' %}💼
+                        {% elif tache_focus.categorie == 'Personnel' %}🏠
+                        {% elif tache_focus.categorie == 'Santé' %}💚
+                        {% else %}📌{% endif %}
+                        {{ tache_focus.categorie }}
+                    </span>
+                    {% if tache_focus.projet_id and tache_focus.projet_id in projets %}
+                    <span class="db-projet-badge"
+                          style="background:{{ projets[tache_focus.projet_id].couleur }}22;
+                                 color:{{ projets[tache_focus.projet_id].couleur }};">
+                        {{ projets[tache_focus.projet_id].icone }} {{ projets[tache_focus.projet_id].nom }}
+                    </span>
+                    {% endif %}
+                </div>
 
-    <!-- Créées cette semaine -->
-    <div class="tuile">
-        <div class="tuile-icone">➕</div>
-        <div class="tuile-nombre">{{ taches_creees_semaine }}</div>
-        <div class="tuile-label">Créées cette semaine</div>
-    </div>
+                <div class="db-focus-titre">{{ tache_focus.titre }}</div>
 
-    <!-- Progression du jour -->
-    <div class="tuile">
-        <div class="tuile-icone">📈</div>
-        <div class="tuile-nombre">{{ progression_jour }}%</div>
-        <div class="tuile-label">Progression du jour</div>
-        <div class="barre-progression">
-            <div class="barre-progression-remplissage" style="width: {{ progression_jour }}%"></div>
-        </div>
-    </div>
+                {% if tache_focus.description %}
+                <div class="db-focus-description">{{ tache_focus.description }}</div>
+                {% endif %}
 
-</div>
-
-<!-- Statistiques détaillées -->
-<div class="section-stats">
-
-    <!-- Répartition par catégorie -->
-    <div class="stats-bloc">
-        <div class="stats-titre">Répartition par catégorie</div>
-        {% for cat, data in repartition_categories.items() %}
-        <div class="stat-ligne">
-            <span class="stat-ligne-label">
-                {% if cat == 'Travail' %}💼{% elif cat == 'Personnel' %}🏠{% elif cat == 'Santé' %}💚{% else %}📌{% endif %}
-                {{ cat }}
-            </span>
-            <div class="stat-barre-conteneur">
-                <div class="stat-barre" style="width: {{ data.pourcentage }}%"></div>
+                <div class="db-focus-meta">
+                    {% if tache_focus.date_echeance %}
+                        {% if jours_retard > 0 %}
+                        <span class="db-meta-retard">🚨 {{ jours_retard }} jour{{ 's' if jours_retard > 1 }} de retard</span>
+                        {% elif tache_focus.date_echeance == aujourd_hui %}
+                        <span class="db-meta-today">📅 Aujourd'hui</span>
+                        {% else %}
+                        <span class="db-meta-futur">📅 {{ tache_focus.date_echeance.strftime('%d/%m/%Y') }}</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="db-meta-neutre">📅 Pas de date</span>
+                    {% endif %}
+                    {% if tache_focus.duree_estimee %}
+                    <span class="db-meta-duree">⏱
+                        {% if tache_focus.duree_estimee >= 60 %}
+                            {{ tache_focus.duree_estimee // 60 }}h{{ '%02d' % (tache_focus.duree_estimee % 60) }}
+                        {% else %}
+                            {{ tache_focus.duree_estimee }} min
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                </div>
             </div>
-            <span class="stat-nombre">{{ data.nombre }}</span>
+
+            <div class="db-focus-actions">
+                <button class="btn btn-vert btn-lg"
+                        onclick="dbMarquerFait({{ tache_focus.id }})">
+                    ✅ Marquer comme fait
+                </button>
+                <button class="btn btn-secondaire"
+                        onclick="dbModifier({{ tache_focus.id }})">
+                    ✏️ Modifier
+                </button>
+            </div>
         </div>
-        {% endfor %}
-        {% if total_actives == 0 %}
-        <p style="color: var(--texte-secondaire); font-size: 0.85rem;">Aucune tâche active.</p>
+
+        {% else %}
+        <div class="db-vide-focus">
+            <div style="font-size:3rem;">🎉</div>
+            <p>Aucune tâche active. Tout est à jour !</p>
+        </div>
         {% endif %}
-    </div>
+    </section>
 
-    <!-- Répartition par zone -->
-    <div class="stats-bloc">
-        <div class="stats-titre">Répartition par zone Eisenhower</div>
-        {% for zone_key, data in repartition_zones.items() %}
-        <div class="stat-ligne">
-            <span class="stat-ligne-label" style="min-width:130px;">{{ data.label }}</span>
-            <div class="stat-barre-conteneur">
-                <div class="stat-barre" style="width: {{ data.pourcentage }}%;
-                    {% if zone_key == 'urgent_important' %}background: #ef4444;
-                    {% elif zone_key == 'important' %}background: #3b82f6;
-                    {% elif zone_key == 'urgent' %}background: #f59e0b;
-                    {% elif zone_key == 'neutre' %}background: #6b7280;
-                    {% elif zone_key == 'en_cours' %}background: #f97316;
-                    {% elif zone_key == 'fait' %}background: #22c55e;
-                    {% endif %}"></div>
+    <!-- ===== DOUBLE COLONNE : RETARDS + BACKLOG ===== -->
+    <div class="db-double">
+
+        <!-- RETARDS -->
+        <section class="db-section db-section-retards">
+            <div class="db-section-entete">
+                <h2 class="db-section-titre">
+                    🚨 Retards
+                    {% if retards %}
+                    <span class="db-count-badge db-count-rouge">{{ retards | length }}</span>
+                    {% endif %}
+                </h2>
             </div>
-            <span class="stat-nombre">{{ data.nombre }}</span>
+
+            {% if retards %}
+            <ul class="db-liste">
+                {% for tache in retards %}
+                {% set jours = (aujourd_hui - tache.date_echeance).days %}
+                <li class="db-item db-item-retard">
+                    <div class="db-item-barre db-zone-barre-{{ tache.zone | replace('_', '-') }}"></div>
+                    <div class="db-item-corps">
+                        <div class="db-item-titre">{{ tache.titre }}</div>
+                        <div class="db-item-meta">
+                            <span class="db-meta-retard-sm">{{ jours }} j de retard</span>
+                            {% if tache.projet_id and tache.projet_id in projets %}
+                            <span class="db-meta-projet-sm">{{ projets[tache.projet_id].icone }} {{ projets[tache.projet_id].nom }}</span>
+                            {% endif %}
+                            {% if tache.duree_estimee %}
+                            <span class="db-meta-duree-sm">⏱ {{ tache.duree_estimee }} min</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="db-item-actions">
+                        <button class="btn btn-xs btn-vert"
+                                onclick="dbMarquerFait({{ tache.id }})">✅ Fait</button>
+                        <button class="btn btn-xs btn-secondaire"
+                                onclick="dbReporterAujourdhui({{ tache.id }})">📅 Aujourd'hui</button>
+                        <button class="btn btn-xs btn-outline"
+                                onclick="dbModifier({{ tache.id }})">✏️</button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="db-vide-section">✅ Aucun retard</div>
+            {% endif %}
+        </section>
+
+        <!-- BACKLOG FLOTTANT -->
+        <section class="db-section db-section-backlog">
+            <div class="db-section-entete">
+                <h2 class="db-section-titre">
+                    📥 Backlog sans date
+                    {% if backlog %}
+                    <span class="db-count-badge db-count-gris">{{ backlog | length }}</span>
+                    {% endif %}
+                </h2>
+            </div>
+
+            {% if backlog %}
+            <ul class="db-liste">
+                {% for tache in backlog %}
+                <li class="db-item">
+                    <div class="db-item-barre db-zone-barre-{{ tache.zone | replace('_', '-') }}"></div>
+                    <div class="db-item-corps">
+                        <div class="db-item-titre">{{ tache.titre }}</div>
+                        <div class="db-item-meta">
+                            <span class="db-meta-zone-sm">
+                                {% if tache.zone == 'urgent_important' %}🔴 Urgent + Important
+                                {% elif tache.zone == 'important' %}🔵 Important
+                                {% elif tache.zone == 'urgent' %}🟡 Urgent
+                                {% elif tache.zone == 'en_cours' %}⏳ En cours
+                                {% else %}⚫ Neutre{% endif %}
+                            </span>
+                            {% if tache.projet_id and tache.projet_id in projets %}
+                            <span class="db-meta-projet-sm">{{ projets[tache.projet_id].icone }} {{ projets[tache.projet_id].nom }}</span>
+                            {% endif %}
+                            {% if tache.duree_estimee %}
+                            <span class="db-meta-duree-sm">⏱ {{ tache.duree_estimee }} min</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="db-item-actions">
+                        <button class="btn btn-xs btn-secondaire"
+                                onclick="dbPlanifierAujourdhui({{ tache.id }})">📅 Aujourd'hui</button>
+                        <button class="btn btn-xs btn-vert"
+                                onclick="dbMarquerFait({{ tache.id }})">✅ Fait</button>
+                        <button class="btn btn-xs btn-outline"
+                                onclick="dbModifier({{ tache.id }})">✏️</button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="db-vide-section">📭 Backlog vide</div>
+            {% endif %}
+        </section>
+
+    </div><!-- /db-double -->
+
+    <!-- ===== MATRICE EISENHOWER ===== -->
+    <section class="db-section">
+        <div class="db-section-entete">
+            <h2 class="db-section-titre">🗂 Matrice Eisenhower</h2>
+            <span class="db-section-hint">Glisser-déposer pour changer de zone · ✅ pour marquer fait</span>
         </div>
-        {% endfor %}
-    </div>
+        <div class="matrice-grille">
 
-</div>
+            <div class="zone" data-zone="urgent_important"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="deposerTache(event, this)">
+                <div class="zone-titre">🔴 Urgent + Important</div>
+                <div class="zone-taches" id="zone-urgent_important"></div>
+            </div>
 
-<!-- Tâches urgentes aujourd'hui -->
-{% if urgentes_auj %}
-<div class="stats-bloc" style="margin-top:1rem;">
-    <div class="stats-titre">🔴 Tâches urgentes aujourd'hui</div>
-    <ul class="liste-taches-auj">
-        {% for tache in urgentes_auj %}
-        <li>
-            <span class="point-zone point-urgent-important"></span>
-            <span>{{ tache.titre }}</span>
-            {% if tache.duree_estimee %}
-            <span style="margin-left:auto; font-size:0.78rem; color:var(--texte-secondaire);">
-                {{ tache.duree_estimee }} min
-            </span>
-            {% endif %}
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
+            <div class="zone" data-zone="important"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="deposerTache(event, this)">
+                <div class="zone-titre">🔵 Important — Planifier</div>
+                <div class="zone-taches" id="zone-important"></div>
+            </div>
 
-<!-- Tâches à venir -->
-{% if a_venir %}
-<div class="stats-bloc" style="margin-top:1rem;">
-    <div class="stats-titre">📅 À venir dans les 3 prochains jours</div>
-    <ul class="liste-taches-auj">
-        {% for tache in a_venir %}
-        <li>
-            <span class="point-zone point-{{ tache.zone | replace('_', '-') }}"></span>
-            <span>{{ tache.titre }}</span>
-            {% if tache.date_echeance %}
-            <span style="margin-left:auto; font-size:0.78rem; color:var(--texte-secondaire);">
-                {{ tache.date_echeance.strftime('%d/%m') }}
-            </span>
-            {% endif %}
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
+            <div class="zone" data-zone="urgent"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="deposerTache(event, this)">
+                <div class="zone-titre">🟡 Urgent — Déléguer</div>
+                <div class="zone-taches" id="zone-urgent"></div>
+            </div>
+
+            <div class="zone" data-zone="neutre"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="deposerTache(event, this)">
+                <div class="zone-titre">⚫ Pas urgent / Pas important</div>
+                <div class="zone-taches" id="zone-neutre"></div>
+            </div>
+
+        </div>
+    </section>
+
+</div><!-- /db-page -->
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Mise à jour de l'horloge en temps réel
-function mettreAJourHorloge() {
-    const maintenant = new Date();
-    const heures = String(maintenant.getHours()).padStart(2, '0');
-    const minutes = String(maintenant.getMinutes()).padStart(2, '0');
-    const secondes = String(maintenant.getSeconds()).padStart(2, '0');
-    const horloge = document.getElementById('horloge');
-    if (horloge) {
-        horloge.textContent = `${heures}:${minutes}:${secondes}`;
-    }
+// Données partagées : matrice + actions rapides
+const tachesInitiales = {{ taches_json | safe }};
+const dbTachesMap = {};
+tachesInitiales.forEach(t => dbTachesMap[t.id] = t);
+
+// ── Actions rapides (focus / retards / backlog) ──
+
+async function dbMarquerFait(id) {
+    await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone: 'fait' })
+    });
+    window.location.reload();
 }
 
-mettreAJourHorloge();
-setInterval(mettreAJourHorloge, 1000);
+async function dbReporterAujourdhui(id) {
+    const today = new Date().toISOString().split('T')[0];
+    await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date_echeance: today })
+    });
+    window.location.reload();
+}
+
+async function dbPlanifierAujourdhui(id) {
+    const today = new Date().toISOString().split('T')[0];
+    await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date_echeance: today })
+    });
+    window.location.reload();
+}
+
+function dbModifier(id) {
+    const tache = dbTachesMap[id];
+    if (tache) ouvrirModal(tache);
+}
+
+// Override du callback matrice : recharge la page pour tout synchroniser
+function apresModificationTache(tache, estModification) {
+    window.location.reload();
+}
 </script>
+<script src="{{ url_for('static', filename='js/matrix.js') }}"></script>
 {% endblock %}

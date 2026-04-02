@@ -1,8 +1,11 @@
 // ===== MATRICE EISENHOWER — Drag & Drop et gestion des tâches =====
 
-// Stockage local des tâches (évite des requêtes supplémentaires)
+// Stockage local des tâches
 let taches = [];
-let tacheEnDrag = null; // ID de la tâche en cours de drag
+let tacheEnDrag = null;
+
+// Zones affichées dans la matrice (4 quadrants uniquement)
+const ZONES_MATRICE = ['urgent_important', 'important', 'urgent', 'neutre'];
 
 // ===== INITIALISATION =====
 
@@ -14,16 +17,13 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===== AFFICHAGE =====
 
 function afficherToutesTaches() {
-    // Vider toutes les zones
-    const zonesIds = ['urgent_important', 'important', 'urgent', 'neutre', 'en_cours', 'fait'];
-    zonesIds.forEach(zone => {
+    ZONES_MATRICE.forEach(zone => {
         const conteneur = document.getElementById(`zone-${zone}`);
         if (conteneur) conteneur.innerHTML = '';
     });
 
-    // Placer chaque tâche dans sa zone
     taches.forEach(tache => {
-        if (tache.zone !== 'corbeille') {
+        if (ZONES_MATRICE.includes(tache.zone)) {
             placerTacheDansZone(tache);
         }
     });
@@ -32,9 +32,7 @@ function afficherToutesTaches() {
 function placerTacheDansZone(tache) {
     const conteneur = document.getElementById(`zone-${tache.zone}`);
     if (!conteneur) return;
-
-    const carte = creerCarteTache(tache);
-    conteneur.appendChild(carte);
+    conteneur.appendChild(creerCarteTache(tache));
 }
 
 function creerCarteTache(tache) {
@@ -44,7 +42,6 @@ function creerCarteTache(tache) {
     carte.draggable = true;
     carte.dataset.id = tache.id;
 
-    // Événements drag
     carte.addEventListener('dragstart', debuterDrag);
     carte.addEventListener('dragend', finirDrag);
 
@@ -57,13 +54,13 @@ function creerCarteTache(tache) {
     };
     const classeBadge = classesBadge[tache.categorie] || 'badge-autre';
 
-    // Date d'échéance et retard
+    // Date d'échéance
     let htmlDate = '';
     if (tache.date_echeance) {
         const dateEch = new Date(tache.date_echeance + 'T00:00:00');
         const aujourd_hui = new Date();
         aujourd_hui.setHours(0, 0, 0, 0);
-        const enRetard = dateEch < aujourd_hui && tache.zone !== 'fait';
+        const enRetard = dateEch < aujourd_hui;
         const dateFormatee = dateEch.toLocaleDateString('fr-FR', {
             day: '2-digit', month: '2-digit', year: 'numeric'
         });
@@ -77,10 +74,9 @@ function creerCarteTache(tache) {
     if (tache.duree_estimee) {
         const heures = Math.floor(tache.duree_estimee / 60);
         const minutes = tache.duree_estimee % 60;
-        const dureeTexte = heures > 0
-            ? `${heures}h${String(minutes).padStart(2, '0')}`
-            : `${minutes} min`;
-        htmlDuree = `<span class="carte-tache-duree">⏱ ${dureeTexte}</span>`;
+        htmlDuree = `<span class="carte-tache-duree">⏱ ${
+            heures > 0 ? `${heures}h${String(minutes).padStart(2, '0')}` : `${minutes} min`
+        }</span>`;
     }
 
     carte.innerHTML = `
@@ -91,11 +87,17 @@ function creerCarteTache(tache) {
             ${htmlDuree}
         </div>
         <div class="carte-tache-actions">
-            <button class="btn-action btn-modifier" onclick="ouvrirModification(${tache.id}); event.stopPropagation();">
+            <button class="btn-action btn-fait-rapide" title="Marquer comme fait"
+                    onclick="marquerFaitMatrice(${tache.id}); event.stopPropagation();">
+                ✅
+            </button>
+            <button class="btn-action btn-modifier"
+                    onclick="ouvrirModification(${tache.id}); event.stopPropagation();">
                 ✏ Modifier
             </button>
-            <button class="btn-action btn-corbeille" onclick="deplacerCorbeille(${tache.id}); event.stopPropagation();">
-                🗑 Corbeille
+            <button class="btn-action btn-corbeille"
+                    onclick="deplacerCorbeille(${tache.id}); event.stopPropagation();">
+                🗑
             </button>
         </div>
     `;
@@ -114,7 +116,6 @@ function debuterDrag(event) {
 
 function finirDrag() {
     this.classList.remove('dragging');
-    // Retirer tous les effets drag-over
     document.querySelectorAll('.zone.drag-over').forEach(z => z.classList.remove('drag-over'));
 }
 
@@ -127,11 +128,9 @@ async function deposerTache(event, zoneElement) {
 
     if (!idTache || !nouvelleZone) return;
 
-    // Trouver la tâche dans notre liste locale
     const tache = taches.find(t => t.id === idTache);
     if (!tache || tache.zone === nouvelleZone) return;
 
-    // Mettre à jour via l'API
     try {
         const reponse = await fetch(`/api/tasks/${idTache}`, {
             method: 'PUT',
@@ -142,22 +141,18 @@ async function deposerTache(event, zoneElement) {
         if (reponse.ok) {
             const resultat = await reponse.json();
 
-            // Mettre à jour la liste locale
             const index = taches.findIndex(t => t.id === idTache);
             if (index !== -1) taches[index] = resultat;
 
-            // Déplacer la carte visuellement
             const ancienneZoneConteneur = document.getElementById(`zone-${tache.zone}`);
             const carte = document.getElementById(`carte-${idTache}`);
             const nouvelleZoneConteneur = document.getElementById(`zone-${nouvelleZone}`);
 
             if (carte && nouvelleZoneConteneur) {
                 if (ancienneZoneConteneur) ancienneZoneConteneur.removeChild(carte);
-                const nouvelleCarte = creerCarteTache(resultat);
-                nouvelleZoneConteneur.appendChild(nouvelleCarte);
+                nouvelleZoneConteneur.appendChild(creerCarteTache(resultat));
             }
 
-            // Auto-régénération : ajouter la nouvelle occurrence dans la bonne zone
             if (resultat._nouvelle_occurrence) {
                 const nouvelleOcc = resultat._nouvelle_occurrence;
                 taches.push(nouvelleOcc);
@@ -179,6 +174,24 @@ function ouvrirModification(id) {
     if (tache) ouvrirModal(tache);
 }
 
+async function marquerFaitMatrice(id) {
+    try {
+        const reponse = await fetch(`/api/tasks/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zone: 'fait' }),
+        });
+        if (reponse.ok) {
+            // Supprimer la carte de la matrice
+            const carte = document.getElementById(`carte-${id}`);
+            if (carte) carte.remove();
+            taches = taches.filter(t => t.id !== id);
+        }
+    } catch (err) {
+        alert('Erreur de connexion au serveur.');
+    }
+}
+
 async function deplacerCorbeille(id) {
     if (!confirm('Déplacer cette tâche dans la corbeille ?')) return;
 
@@ -190,11 +203,8 @@ async function deplacerCorbeille(id) {
         });
 
         if (reponse.ok) {
-            // Supprimer la carte de l'interface
             const carte = document.getElementById(`carte-${id}`);
             if (carte) carte.remove();
-
-            // Retirer de la liste locale
             taches = taches.filter(t => t.id !== id);
         } else {
             const erreur = await reponse.json();
@@ -205,29 +215,23 @@ async function deplacerCorbeille(id) {
     }
 }
 
-// ===== CALLBACK APRÈS SAUVEGARDE (depuis base.html) =====
+// ===== CALLBACK APRÈS SAUVEGARDE =====
+// Défini ici comme fallback ; la page dashboard.html l'override pour recharger la page.
 
 function apresModificationTache(tacheMisAJour, estModification) {
     if (estModification) {
-        // Mettre à jour dans la liste locale
         const index = taches.findIndex(t => t.id === tacheMisAJour.id);
         if (index !== -1) {
-            const ancienneZone = taches[index].zone;
             taches[index] = tacheMisAJour;
-
-            // Supprimer l'ancienne carte
             const ancienneCarte = document.getElementById(`carte-${tacheMisAJour.id}`);
             if (ancienneCarte) ancienneCarte.remove();
-
-            // Placer la carte dans la nouvelle zone
-            if (tacheMisAJour.zone !== 'corbeille') {
+            if (ZONES_MATRICE.includes(tacheMisAJour.zone)) {
                 placerTacheDansZone(tacheMisAJour);
             }
         }
     } else {
-        // Nouvelle tâche : ajouter à la liste et afficher
         taches.push(tacheMisAJour);
-        if (tacheMisAJour.zone !== 'corbeille') {
+        if (ZONES_MATRICE.includes(tacheMisAJour.zone)) {
             placerTacheDansZone(tacheMisAJour);
         }
     }

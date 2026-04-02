@@ -25,11 +25,8 @@
         <a href="/recurrence" class="sidebar-lien {% if request.endpoint == 'pages.page_recurrence' %}actif{% endif %}" title="Récurrence">
             <span class="sidebar-icone">🔁</span><span class="sidebar-texte">Récurrence</span>
         </a>
-        <a href="/matrix" class="sidebar-lien {% if request.endpoint == 'pages.page_matrice' %}actif{% endif %}" title="Matrice">
-            <span class="sidebar-icone">🗂</span><span class="sidebar-texte">Matrice</span>
-        </a>
-        <a href="/dashboard" class="sidebar-lien {% if request.endpoint == 'pages.page_tableau_de_bord' %}actif{% endif %}" title="Tableau de bord">
-            <span class="sidebar-icone">📊</span><span class="sidebar-texte">Tableau de bord</span>
+        <a href="/dashboard" class="sidebar-lien {% if request.endpoint in ('pages.page_tableau_de_bord', 'pages.page_matrice') %}actif{% endif %}" title="Vue d'ensemble">
+            <span class="sidebar-icone">🗂</span><span class="sidebar-texte">Vue d'ensemble</span>
         </a>
         <a href="/trash" class="sidebar-lien {% if request.endpoint == 'pages.page_corbeille' %}actif{% endif %}" title="Corbeille">
             <span class="sidebar-icone">🗑</span><span class="sidebar-texte">Corbeille</span>
@@ -209,7 +206,6 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
                         <option value="important">🔵 Important (planifier)</option>
                         <option value="urgent">🟡 Urgent (déléguer)</option>
                         <option value="neutre">⚫ Pas urgent/important</option>
-                        <option value="en_cours">⏳ En cours</option>
                         <option value="fait">✅ Fait</option>
                     </select>
                 </div>

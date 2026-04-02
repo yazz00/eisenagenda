@@ -2254,3 +2254,298 @@ h1.titre-page {
     border-left: 2px solid #e2e8f0;
     margin-left: 22px;
 }
+
+
+/* ===== TABLEAU DE BORD — Focus / Retards / Backlog ===== */
+
+.btn-vert {
+    background: #dcfce7;
+    color: #16a34a;
+}
+.btn-vert:hover { background: #bbf7d0; }
+
+.btn-lg {
+    padding: 0.75rem 1.75rem;
+    font-size: 1rem;
+}
+
+.db-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.db-section {
+    background: var(--blanc);
+    border-radius: var(--rayon);
+    box-shadow: var(--ombre);
+    padding: 1.25rem 1.5rem;
+}
+
+.db-section-entete {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.db-section-titre {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.db-section-hint {
+    font-size: 0.82rem;
+    color: var(--texte-secondaire);
+}
+
+/* ── Focus carte ── */
+.db-focus-carte {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 12px;
+    border-left: 6px solid transparent;
+    flex-wrap: wrap;
+}
+
+.db-focus-zone-urgent-important { background: #fef2f2; border-left-color: #ef4444; }
+.db-focus-zone-important        { background: #eff6ff; border-left-color: #3b82f6; }
+.db-focus-zone-urgent           { background: #fffbeb; border-left-color: #f59e0b; }
+.db-focus-zone-en-cours         { background: #fff7ed; border-left-color: #f97316; }
+.db-focus-zone-neutre           { background: #f8fafc; border-left-color: #6b7280; }
+
+.db-focus-corps {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.db-focus-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.db-zone-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.db-zone-badge-urgent-important { background: #fee2e2; color: #dc2626; }
+.db-zone-badge-important        { background: #dbeafe; color: #1d4ed8; }
+.db-zone-badge-urgent           { background: #fef3c7; color: #b45309; }
+.db-zone-badge-en-cours         { background: #ffedd5; color: #c2410c; }
+.db-zone-badge-neutre           { background: #f1f5f9; color: #475569; }
+
+.db-cat-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.78rem;
+    background: #f1f5f9;
+    color: var(--texte-secondaire);
+}
+
+.db-projet-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    gap: 0.3rem;
+}
+
+.db-focus-titre {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.db-focus-description {
+    font-size: 0.9rem;
+    color: var(--texte-secondaire);
+    line-height: 1.5;
+}
+
+.db-focus-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+}
+
+.db-meta-retard  { color: #dc2626; font-weight: 700; }
+.db-meta-today   { color: #2563eb; font-weight: 600; }
+.db-meta-futur   { color: var(--texte-secondaire); }
+.db-meta-neutre  { color: var(--texte-secondaire); }
+.db-meta-duree   { color: var(--texte-secondaire); }
+
+.db-focus-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.db-vide-focus {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    color: var(--texte-secondaire);
+    text-align: center;
+}
+
+/* ── Double colonne ── */
+.db-double {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .db-double { grid-template-columns: 1fr; }
+}
+
+/* ── Listes retards / backlog ── */
+.db-liste {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.db-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    background: var(--fond);
+    transition: background 0.1s;
+}
+
+.db-item:hover { background: #e2e8f0; }
+
+.db-item-retard { border-left: 3px solid #ef4444; background: #fff5f5; }
+.db-item-retard:hover { background: #fee2e2; }
+
+.db-item-barre {
+    width: 4px;
+    height: 32px;
+    border-radius: 99px;
+    flex-shrink: 0;
+}
+
+.db-zone-barre-urgent-important { background: #ef4444; }
+.db-zone-barre-important        { background: #3b82f6; }
+.db-zone-barre-urgent           { background: #f59e0b; }
+.db-zone-barre-en-cours         { background: #f97316; }
+.db-zone-barre-neutre           { background: #6b7280; }
+
+.db-item-corps {
+    flex: 1;
+    min-width: 0;
+}
+
+.db-item-titre {
+    font-weight: 600;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.db-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.15rem;
+}
+
+.db-meta-retard-sm  { font-size: 0.75rem; color: #dc2626; font-weight: 700; }
+.db-meta-zone-sm    { font-size: 0.75rem; color: var(--texte-secondaire); }
+.db-meta-cat-sm     { font-size: 0.75rem; color: var(--texte-secondaire); }
+.db-meta-projet-sm  { font-size: 0.75rem; color: var(--texte-secondaire); }
+.db-meta-duree-sm   { font-size: 0.75rem; color: var(--texte-secondaire); }
+
+.db-item-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.db-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.db-count-rouge { background: #fee2e2; color: #dc2626; }
+.db-count-gris  { background: #f1f5f9; color: #475569; }
+
+.db-vide-section {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--texte-secondaire);
+    font-size: 0.88rem;
+}
+
+/* ===== MATRICE DANS LE DASHBOARD (zones intégrées dans une carte) ===== */
+
+.db-section .matrice-grille {
+    margin-bottom: 0;
+}
+
+.db-section .zone {
+    box-shadow: none;
+    border: 1px solid #e2e8f0;
+}
+
+.db-section .zone[data-zone="urgent_important"] { background: #fff5f5; }
+.db-section .zone[data-zone="important"]        { background: #f0f7ff; }
+.db-section .zone[data-zone="urgent"]           { background: #fffcf0; }
+.db-section .zone[data-zone="neutre"]           { background: #f8fafc; }
+
+/* Bouton ✅ rapide sur les cartes de la matrice */
+.btn-fait-rapide {
+    background: #dcfce7;
+    color: #16a34a;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 5px;
+    border: 1px solid #bbf7d0;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.btn-fait-rapide:hover {
+    background: #bbf7d0;
+}

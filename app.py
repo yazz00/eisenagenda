@@ -19,6 +19,8 @@ def migrer_schema(app):
             "ALTER TABLE config_journee ADD COLUMN duree_gouter INTEGER NOT NULL DEFAULT 30",
             "ALTER TABLE tasks ADD COLUMN projet_id INTEGER REFERENCES projects(id)",
             "ALTER TABLE tasks ADD COLUMN parent_id INTEGER REFERENCES tasks(id)",
+            # Migration : zone 'en_cours' supprimée → bascule vers urgent_important
+            "UPDATE tasks SET zone='urgent_important' WHERE zone='en_cours'",
         ]
         for migration in migrations:
             try:

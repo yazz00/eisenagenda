@@ -9,7 +9,6 @@ ZONES_VALIDES = [
     'important',
     'urgent',
     'neutre',
-    'en_cours',
     'fait',
     'corbeille'
 ]
