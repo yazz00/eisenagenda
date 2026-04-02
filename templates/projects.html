@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block titre %}Projets — EisenAgenda{% endblock %}
+
+{% block content %}
+
+<div class="projets-page">
+
+    <!-- ===== PANNEAU GAUCHE : liste des projets ===== -->
+    <aside class="projets-liste-panel">
+        <div class="projets-liste-entete">
+            <h2 class="projets-liste-titre">🌳 Projets</h2>
+            <button class="btn btn-primaire btn-sm" onclick="ouvrirModalProjet()">+ Nouveau</button>
+        </div>
+        <ul id="liste-projets" class="projets-liste"></ul>
+    </aside>
+
+    <!-- ===== PANNEAU DROIT : arbre du projet ===== -->
+    <section class="projets-arbre-panel">
+        <div id="projet-vide" class="projet-vide">
+            <div class="projet-vide-icone">🌳</div>
+            <p>Sélectionne un projet pour voir son arbre de tâches.</p>
+            <button class="btn btn-primaire" onclick="ouvrirModalProjet()">Créer un premier projet</button>
+        </div>
+        <div id="projet-contenu" style="display:none;">
+            <div id="projet-entete" class="projet-entete"></div>
+            <div id="arbre-conteneur" class="arbre-conteneur"></div>
+        </div>
+    </section>
+
+</div>
+
+<!-- ===== MODAL PROJET ===== -->
+<div id="modal-projet-overlay" class="modal-overlay" onclick="fermerModalProjetSiExterieur(event)">
+    <div class="modal" role="dialog" aria-modal="true">
+        <button class="modal-fermer" onclick="fermerModalProjet()">×</button>
+        <h2 class="modal-titre" id="modal-projet-titre">Nouveau projet</h2>
+        <div id="modal-projet-erreurs" class="alerte alerte-erreur" style="display:none;"></div>
+        <form id="form-projet" onsubmit="sauvegarderProjet(event)">
+            <input type="hidden" id="projet-id" value="">
+            <div class="form-groupe">
+                <label class="form-label" for="projet-nom">Nom du projet *</label>
+                <input type="text" id="projet-nom" class="form-input" placeholder="Ex : Refonte site web" maxlength="200" required>
+            </div>
+            <div class="form-groupe">
+                <label class="form-label" for="projet-description">Description</label>
+                <textarea id="projet-description" class="form-input" rows="2" placeholder="Objectif du projet..."></textarea>
+            </div>
+            <div class="form-grille-2">
+                <div class="form-groupe">
+                    <label class="form-label" for="projet-icone">Icône (emoji)</label>
+                    <input type="text" id="projet-icone" class="form-input" placeholder="📁" maxlength="10" value="📁"
+                           autocomplete="off" spellcheck="false" style="font-size:1.4rem; text-align:center;">
+                </div>
+                <div class="form-groupe">
+                    <label class="form-label" for="projet-couleur">Couleur</label>
+                    <input type="color" id="projet-couleur" class="form-input" value="#3b82f6" style="height:42px;padding:4px;">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondaire" onclick="fermerModalProjet()">Annuler</button>
+                <button type="submit" class="btn btn-primaire">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const projetsInitiaux = {{ projets_json | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+{% endblock %}

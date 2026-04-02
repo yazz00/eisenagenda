@@ -35,6 +35,11 @@ class Task(db.Model):
     zone_precedente = db.Column(db.String(50), nullable=True)  # pour restaurer depuis la corbeille
     heure_debut = db.Column(db.String(5), nullable=True)  # "HH:MM" — positionnement sur la timeline
     auto_regenerer = db.Column(db.Boolean, nullable=False, default=False)  # recrée l'occurrence suivante quand "fait"
+    projet_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='SET NULL'), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='CASCADE'), nullable=True)
+    sous_taches = db.relationship('Task',
+                                  backref=db.backref('parent_tache', remote_side='Task.id'),
+                                  cascade='all, delete-orphan', lazy='dynamic')
     date_creation = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     date_modification = db.Column(
         db.DateTime,
@@ -57,6 +62,8 @@ class Task(db.Model):
             'zone_precedente': self.zone_precedente,
             'heure_debut': self.heure_debut,
             'auto_regenerer': self.auto_regenerer,
+            'projet_id': self.projet_id,
+            'parent_id': self.parent_id,
             'date_creation': self.date_creation.isoformat() if self.date_creation else None,
             'date_modification': self.date_modification.isoformat() if self.date_modification else None,
         }

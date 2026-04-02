@@ -4,6 +4,7 @@ from models.task import db
 from routes.tasks import tasks_bp
 from routes.pages import pages_bp
 from routes.config import config_bp
+from routes.projects import projects_bp
 
 
 def migrer_schema(app):
@@ -16,6 +17,8 @@ def migrer_schema(app):
             "ALTER TABLE config_journee ADD COLUMN gouter_actif BOOLEAN NOT NULL DEFAULT 0",
             "ALTER TABLE config_journee ADD COLUMN heure_gouter VARCHAR(5) NOT NULL DEFAULT '16:30'",
             "ALTER TABLE config_journee ADD COLUMN duree_gouter INTEGER NOT NULL DEFAULT 30",
+            "ALTER TABLE tasks ADD COLUMN projet_id INTEGER REFERENCES projects(id)",
+            "ALTER TABLE tasks ADD COLUMN parent_id INTEGER REFERENCES tasks(id)",
         ]
         for migration in migrations:
             try:
@@ -38,11 +41,13 @@ def create_app():
     app.register_blueprint(tasks_bp)
     app.register_blueprint(pages_bp)
     app.register_blueprint(config_bp)
+    app.register_blueprint(projects_bp)
 
     # Créer les tables si elles n'existent pas
     with app.app_context():
-        # Import du nouveau modèle pour que SQLAlchemy le connaisse
+        # Import des modèles pour que SQLAlchemy les connaisse
         from models.config_journee import ConfigJournee
+        from models.project import Project
         db.create_all()
 
     # Appliquer les migrations de schéma

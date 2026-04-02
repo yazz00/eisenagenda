@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template
 from models.task import db, Task
 from models.config_journee import ConfigJournee
+from models.project import Project
 
 pages_bp = Blueprint('pages', __name__)
 
@@ -205,6 +206,24 @@ def page_recurrence():
         taches_quotidien_json=json.dumps([t.to_dict() for t in taches_quotidien], ensure_ascii=False),
         taches_hebdo_json=json.dumps([t.to_dict() for t in taches_hebdo], ensure_ascii=False),
         taches_mensuel_json=json.dumps([t.to_dict() for t in taches_mensuel], ensure_ascii=False),
+    )
+
+
+@pages_bp.route('/projects')
+def page_projets():
+    """Page Projets — arbre des tâches par projet."""
+    projets = Project.query.order_by(Project.date_creation.desc()).all()
+    projets_data = []
+    for p in projets:
+        d = p.to_dict()
+        taches_actives = Task.query.filter_by(projet_id=p.id) \
+            .filter(Task.zone != 'corbeille').all()
+        d['nb_taches'] = len(taches_actives)
+        d['nb_faites'] = sum(1 for t in taches_actives if t.zone == 'fait')
+        projets_data.append(d)
+    return render_template(
+        'projects.html',
+        projets_json=json.dumps(projets_data, ensure_ascii=False),
     )
 
 

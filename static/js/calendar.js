@@ -8,12 +8,38 @@ const MOIS_NOMS = [
     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
-// Constantes timeline
+// Bornes par défaut de la timeline (si aucune tâche ne déborde)
 const TL_HEURE_DEBUT   = 5;           // 5h00
 const TL_HEURE_FIN     = 24;          // 00h00 (minuit)
 const TL_MIN_DEBUT     = TL_HEURE_DEBUT * 60;
 const TL_PX_MIN_JOUR   = 0.7;         // vue jour : 0.7px/min → 1h = 42px
 const TL_PX_MIN_SEM    = 0.7;         // vue semaine : 0.7px/min → 1h = 42px
+
+/**
+ * Calcule la plage horaire optimale (début/fin en heures entières).
+ * Les bornes par défaut (5h–24h) ne sont ajustées QUE si une tâche
+ * sort effectivement de ces limites. Pas de marge ajoutée sinon.
+ * @param {Array} tachesAvecHeure - tâches ayant un champ heure_debut
+ * @returns {{ debut: number, fin: number }}
+ */
+function calculerPlageHoraire(tachesAvecHeure) {
+    let heureMin = TL_HEURE_DEBUT;  // 5h par défaut
+    let heureMax = TL_HEURE_FIN;    // 24h par défaut
+
+    tachesAvecHeure.forEach(t => {
+        if (!t.heure_debut) return;
+        const minDebut = heureVersMinutes(t.heure_debut);
+        const minFin   = minDebut + (t.duree_estimee || 30);
+        const hDebut   = Math.floor(minDebut / 60);
+        const hFin     = Math.ceil(minFin   / 60);
+
+        // N'ajuster que si la tâche dépasse les bornes par défaut
+        if (hDebut < heureMin) heureMin = Math.max(0,  hDebut - 1);
+        if (hFin   > heureMax) heureMax = Math.min(25, hFin   + 1);
+    });
+
+    return { debut: heureMin, fin: heureMax };
+}
 
 // État global
 let taches = [...tachesInitiales];
@@ -88,10 +114,11 @@ function rendreJour() {
     const panneau = creerPanneauNonPlanifiees(nonPlanif, dateISO);
     conteneur.appendChild(panneau);
 
-    // Timeline
+    // Timeline — plage adaptée aux tâches du jour
+    const plage = calculerPlageHoraire(planifiees);
     const tlConteneur = document.createElement('div');
     tlConteneur.className = 'today-timeline-conteneur';
-    const tl = construireTimeline(TL_PX_MIN_JOUR, planifiees, estAujourd_hui, dateISO);
+    const tl = construireTimeline(TL_PX_MIN_JOUR, planifiees, estAujourd_hui, dateISO, plage.debut, plage.fin);
     tlConteneur.appendChild(tl);
     conteneur.appendChild(tlConteneur);
 }
@@ -123,15 +150,28 @@ function rendreSemaine() {
     const wrapper = document.createElement('div');
     wrapper.className = 'semaine-tl-wrapper';
 
+    // Calculer la plage horaire sur les 7 jours de la semaine
+    const tachesSemaine = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(lundi);
+        d.setDate(lundi.getDate() + i);
+        const iso = formaterDateISO(d);
+        taches.filter(t => t.date_echeance === iso && t.heure_debut).forEach(t => tachesSemaine.push(t));
+    }
+    const plage = calculerPlageHoraire(tachesSemaine);
+    const heureDebut = plage.debut;
+    const heureFin   = plage.fin;
+    const minDebut   = heureDebut * 60;
+
     // Colonne des heures (fixe à gauche)
     const colonneHeures = document.createElement('div');
     colonneHeures.className = 'semaine-tl-heures';
-    const hauteurTotale = (TL_HEURE_FIN - TL_HEURE_DEBUT) * 60 * TL_PX_MIN_SEM;
+    const hauteurTotale = (heureFin - heureDebut) * 60 * TL_PX_MIN_SEM;
 
-    for (let h = TL_HEURE_DEBUT; h <= TL_HEURE_FIN; h++) {
+    for (let h = heureDebut; h <= heureFin; h++) {
         const label = document.createElement('div');
         label.className = 'semaine-tl-heure-label';
-        label.style.top = ((h - TL_HEURE_DEBUT) * 60 * TL_PX_MIN_SEM) + 'px';
+        label.style.top = ((h - heureDebut) * 60 * TL_PX_MIN_SEM) + 'px';
         label.textContent = `${String(h % 24).padStart(2, '0')}:00`;
         colonneHeures.appendChild(label);
     }
@@ -179,20 +219,20 @@ function rendreSemaine() {
         zone.style.height = hauteurTotale + 'px';
 
         // Lignes d'heures
-        for (let h = TL_HEURE_DEBUT; h <= TL_HEURE_FIN; h++) {
+        for (let h = heureDebut; h <= heureFin; h++) {
             const ligne = document.createElement('div');
             ligne.className = 'semaine-tl-ligne-heure';
-            ligne.style.top = ((h - TL_HEURE_DEBUT) * 60 * TL_PX_MIN_SEM) + 'px';
+            ligne.style.top = ((h - heureDebut) * 60 * TL_PX_MIN_SEM) + 'px';
             zone.appendChild(ligne);
         }
 
         // Blocs de pauses
-        creerBlocsPauses(zone, TL_PX_MIN_SEM, true);
+        creerBlocsPauses(zone, TL_PX_MIN_SEM, true, minDebut, heureFin);
 
         // Tâches planifiées
         const planifiees = taches.filter(t => t.date_echeance === dateISO && t.heure_debut);
         planifiees.forEach(t => {
-            const bloc = creerBlocTache(t, TL_PX_MIN_SEM);
+            const bloc = creerBlocTache(t, TL_PX_MIN_SEM, minDebut);
             zone.appendChild(bloc);
         });
 
@@ -201,7 +241,7 @@ function rendreSemaine() {
             if (e.target !== zone) return;
             const rect = zone.getBoundingClientRect();
             const y = e.clientY - rect.top;
-            const minutes = TL_MIN_DEBUT + Math.round(y / TL_PX_MIN_SEM / 15) * 15;
+            const minutes = minDebut + Math.round(y / TL_PX_MIN_SEM / 15) * 15;
             ouvrirModal(null, null, minutesVersHeure(minutes));
             setTimeout(() => { document.getElementById('tache-date').value = dateISO; }, 50);
         });
@@ -210,10 +250,10 @@ function rendreSemaine() {
         if (estAujourd_hui) {
             const maint = new Date();
             const minMaint = maint.getHours() * 60 + maint.getMinutes();
-            if (minMaint >= TL_MIN_DEBUT && minMaint <= TL_HEURE_FIN * 60) {
+            if (minMaint >= minDebut && minMaint <= heureFin * 60) {
                 const ind = document.createElement('div');
                 ind.className = 'timeline-maintenant';
-                ind.style.top = ((minMaint - TL_MIN_DEBUT) * TL_PX_MIN_SEM) + 'px';
+                ind.style.top = ((minMaint - minDebut) * TL_PX_MIN_SEM) + 'px';
                 zone.appendChild(ind);
             }
         }
@@ -322,19 +362,21 @@ function creerCelluleMois(date, autreMois, estAujourd_hui) {
 // CONSTRUCTION TIMELINE (partagée Jour + Semaine)
 // ============================================================
 
-function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO) {
-    const hauteurTotale = (TL_HEURE_FIN - TL_HEURE_DEBUT) * 60 * pxParMin;
+function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO,
+                            heureDebut = TL_HEURE_DEBUT, heureFin = TL_HEURE_FIN) {
+    const minDebut = heureDebut * 60;
+    const hauteurTotale = (heureFin - heureDebut) * 60 * pxParMin;
 
     const tl = document.createElement('div');
     tl.className = 'timeline';
     tl.style.height = hauteurTotale + 'px';
 
     // Marqueurs d'heures
-    for (let h = TL_HEURE_DEBUT; h <= TL_HEURE_FIN; h++) {
+    for (let h = heureDebut; h <= heureFin; h++) {
         for (let m = 0; m < 60; m += 30) {
-            if (h === TL_HEURE_FIN && m > 0) break;
+            if (h === heureFin && m > 0) break;
             const minutes = h * 60 + m;
-            const top = (minutes - TL_MIN_DEBUT) * pxParMin;
+            const top = (minutes - minDebut) * pxParMin;
 
             const marqueur = document.createElement('div');
             marqueur.className = 'timeline-marqueur' + (m === 0 ? ' timeline-marqueur-heure' : '');
@@ -351,7 +393,7 @@ function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO) {
     }
 
     // Blocs de pauses
-    creerBlocsPauses(tl, pxParMin, false);
+    creerBlocsPauses(tl, pxParMin, false, minDebut, heureFin);
 
     // Zone cliquable
     const zone = document.createElement('div');
@@ -361,36 +403,36 @@ function construireTimeline(pxParMin, planifiees, estAujourd_hui, dateISO) {
         const rect = tl.getBoundingClientRect();
         const scrollTop = tl.parentElement.scrollTop || 0;
         const y = e.clientY - rect.top + scrollTop;
-        const minutes = TL_MIN_DEBUT + Math.round(y / pxParMin / 15) * 15;
+        const minutes = minDebut + Math.round(y / pxParMin / 15) * 15;
         ouvrirModal(null, null, minutesVersHeure(minutes));
         setTimeout(() => { document.getElementById('tache-date').value = dateISO; }, 50);
     });
     tl.appendChild(zone);
 
     // Tâches planifiées
-    planifiees.forEach(t => tl.appendChild(creerBlocTache(t, pxParMin)));
+    planifiees.forEach(t => tl.appendChild(creerBlocTache(t, pxParMin, minDebut)));
 
     // Indicateur maintenant
     if (estAujourd_hui) {
         const maint = new Date();
         const min = maint.getHours() * 60 + maint.getMinutes();
-        if (min >= TL_MIN_DEBUT && min <= TL_HEURE_FIN * 60) {
+        if (min >= minDebut && min <= heureFin * 60) {
             const ind = document.createElement('div');
             ind.className = 'timeline-maintenant';
-            ind.style.top = ((min - TL_MIN_DEBUT) * pxParMin) + 'px';
+            ind.style.top = ((min - minDebut) * pxParMin) + 'px';
             tl.appendChild(ind);
             setInterval(() => {
                 const m2 = new Date().getHours() * 60 + new Date().getMinutes();
-                ind.style.top = ((m2 - TL_MIN_DEBUT) * pxParMin) + 'px';
+                ind.style.top = ((m2 - minDebut) * pxParMin) + 'px';
             }, 60000);
         }
     }
 
-
     return tl;
 }
 
-function creerBlocsPauses(conteneur, pxParMin, compact) {
+function creerBlocsPauses(conteneur, pxParMin, compact,
+                          minDebut = TL_MIN_DEBUT, heureFin = TL_HEURE_FIN) {
     const pauses = [
         { label: '🌅 Réveil & routine', heure: configJournee.heure_reveil,   duree: configJournee.duree_routine_matin, classe: 'pause-matin'    },
         { label: '🍽 Déjeuner',          heure: configJournee.heure_dejeuner,  duree: configJournee.duree_dejeuner,      classe: 'pause-dejeuner' },
@@ -404,11 +446,11 @@ function creerBlocsPauses(conteneur, pxParMin, compact) {
     pauses.forEach(p => {
         if (!p.heure || !p.duree) return;
         const min = heureVersMinutes(p.heure);
-        if (min < TL_MIN_DEBUT || min >= TL_HEURE_FIN * 60) return;
+        if (min < minDebut || min >= heureFin * 60) return;
 
         const bloc = document.createElement('div');
         bloc.className = `bloc-pause ${p.classe}`;
-        bloc.style.top    = ((min - TL_MIN_DEBUT) * pxParMin) + 'px';
+        bloc.style.top    = ((min - minDebut) * pxParMin) + 'px';
         bloc.style.height = Math.max(p.duree * pxParMin, 20) + 'px';
         bloc.textContent  = compact ? '' : `${p.label} (${p.duree} min)`;
         bloc.title        = `${p.label} — ${p.heure}, ${p.duree} min`;
@@ -416,7 +458,7 @@ function creerBlocsPauses(conteneur, pxParMin, compact) {
     });
 }
 
-function creerBlocTache(tache, pxParMin) {
+function creerBlocTache(tache, pxParMin, minDebut = TL_MIN_DEBUT) {
     const min    = heureVersMinutes(tache.heure_debut);
     const duree  = tache.duree_estimee || 30;
     const hauteur = Math.max(duree * pxParMin, 22);
@@ -429,7 +471,7 @@ function creerBlocTache(tache, pxParMin) {
 
     const bloc = document.createElement('div');
     bloc.className = `bloc-tache ${classes[tache.zone] || 'zone-bloc-gris'}`;
-    bloc.style.top    = ((min - TL_MIN_DEBUT) * pxParMin) + 'px';
+    bloc.style.top    = ((min - minDebut) * pxParMin) + 'px';
     bloc.style.height = hauteur + 'px';
 
     const heureFin = minutesVersHeure(min + duree);

@@ -166,6 +166,43 @@ body {
     width: 0;
 }
 
+/* Centrage des éléments quand la sidebar est réduite */
+.sidebar--reduite {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar--reduite .sidebar-entete {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar--reduite .sidebar-logo {
+    display: none;
+}
+
+.sidebar--reduite .sidebar-lien {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+}
+
+.sidebar--reduite .sidebar-icone {
+    width: auto;
+    font-size: 1.2rem;
+}
+
+.sidebar--reduite .sidebar-btn-tache {
+    justify-content: center;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
 .sidebar-btn-tache {
     margin-top: auto;
     width: 100%;
@@ -1827,4 +1864,393 @@ h1.titre-page {
     border-color: #6366f1;
     color: #ffffff;
     font-weight: 700;
+}
+
+/* ===== PAGE PROJETS ===== */
+
+.projets-page {
+    display: flex;
+    gap: 1.25rem;
+    height: calc(100vh - 5rem);
+    overflow: hidden;
+}
+
+/* --- Panneau gauche : liste --- */
+.projets-liste-panel {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--blanc);
+    border-radius: var(--rayon);
+    box-shadow: var(--ombre);
+    overflow: hidden;
+}
+
+.projets-liste-entete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.projets-liste-titre {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.projets-liste {
+    list-style: none;
+    overflow-y: auto;
+    flex: 1;
+    padding: 0.5rem;
+}
+
+.projets-liste-vide {
+    color: var(--texte-secondaire);
+    font-size: 0.85rem;
+    padding: 1rem;
+    text-align: center;
+}
+
+.projet-item {
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.25rem;
+}
+
+.projet-item:hover { background: var(--fond); }
+.projet-item.actif { background: #eff6ff; }
+
+.projet-item-principal {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.projet-item-icone {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.projet-item-infos {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.projet-item-nom {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.projet-item-stats {
+    font-size: 0.78rem;
+    color: var(--texte-secondaire);
+}
+
+.projet-item-actions {
+    display: none;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+    justify-content: flex-end;
+}
+
+.projet-item:hover .projet-item-actions { display: flex; }
+
+.btn-icone {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+    color: var(--texte-secondaire);
+    transition: background 0.1s;
+}
+.btn-icone:hover { background: #f1f5f9; }
+.btn-icone-danger:hover { background: #fef2f2; color: var(--rouge); border-color: var(--rouge); }
+
+.projet-item-barre {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+}
+
+.projet-barre-fond {
+    flex: 1;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.projet-barre-rempli {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.4s ease;
+}
+
+.projet-barre-pct {
+    font-size: 0.72rem;
+    color: var(--texte-secondaire);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* --- Panneau droit : arbre --- */
+.projets-arbre-panel {
+    flex: 1;
+    background: var(--blanc);
+    border-radius: var(--rayon);
+    box-shadow: var(--ombre);
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.projet-vide {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: var(--texte-secondaire);
+    text-align: center;
+}
+
+.projet-vide-icone { font-size: 3rem; }
+
+/* En-tête projet */
+.projet-entete {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+}
+
+.projet-entete-gauche {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.projet-entete-icone {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.projet-entete-nom {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0 0 0.2rem;
+}
+
+.projet-entete-desc {
+    font-size: 0.88rem;
+    color: var(--texte-secondaire);
+    margin: 0;
+}
+
+.projet-entete-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Arbre */
+.arbre-conteneur {
+    display: flex;
+    flex-direction: column;
+}
+
+.arbre-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.arbre-chargement,
+.arbre-erreur {
+    padding: 2rem;
+    text-align: center;
+    color: var(--texte-secondaire);
+}
+
+.arbre-vide {
+    padding: 2rem;
+    text-align: center;
+    color: var(--texte-secondaire);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.arbre-ligne {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: default;
+    transition: background 0.1s;
+    position: relative;
+    min-height: 44px;
+}
+
+.arbre-ligne:hover {
+    background: var(--fond);
+}
+
+.arbre-ligne-fait {
+    opacity: 0.65;
+}
+
+.arbre-indicateur {
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 99px;
+}
+
+.arbre-chevron-zone {
+    width: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.arbre-chevron {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    color: var(--texte-secondaire);
+    padding: 0;
+    transition: transform 0.15s;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.arbre-feuille {
+    font-size: 0.5rem;
+    color: #cbd5e1;
+}
+
+.arbre-contenu {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.arbre-titre {
+    font-weight: 600;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.arbre-titre-fait {
+    text-decoration: line-through;
+    color: var(--texte-secondaire);
+}
+
+.arbre-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+}
+
+.arbre-date {
+    color: var(--texte-secondaire);
+}
+
+.arbre-date-retard {
+    color: var(--rouge);
+    font-weight: 600;
+}
+
+.arbre-duree {
+    color: var(--texte-secondaire);
+}
+
+/* Actions de ligne (visibles au survol) */
+.arbre-actions {
+    display: none;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.arbre-ligne:hover .arbre-actions {
+    display: flex;
+}
+
+.btn-arbre {
+    background: var(--blanc);
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.5rem;
+    color: var(--texte-secondaire);
+    white-space: nowrap;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.btn-arbre:hover {
+    background: var(--fond);
+    border-color: var(--gris);
+    color: var(--texte);
+}
+
+.btn-arbre-danger:hover {
+    background: #fef2f2;
+    border-color: var(--rouge);
+    color: var(--rouge);
+}
+
+/* Enfants (indentation visuelle) */
+.arbre-enfants {
+    border-left: 2px solid #e2e8f0;
+    margin-left: 22px;
 }

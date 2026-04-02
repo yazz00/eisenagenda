@@ -19,6 +19,9 @@
         <a href="/calendar" class="sidebar-lien {% if request.endpoint in ('pages.page_calendrier', 'pages.page_ma_journee') %}actif{% endif %}" title="Planning">
             <span class="sidebar-icone">📅</span><span class="sidebar-texte">Planning</span>
         </a>
+        <a href="/projects" class="sidebar-lien {% if request.endpoint == 'pages.page_projets' %}actif{% endif %}" title="Projets">
+            <span class="sidebar-icone">🌳</span><span class="sidebar-texte">Projets</span>
+        </a>
         <a href="/recurrence" class="sidebar-lien {% if request.endpoint == 'pages.page_recurrence' %}actif{% endif %}" title="Récurrence">
             <span class="sidebar-icone">🔁</span><span class="sidebar-texte">Récurrence</span>
         </a>
@@ -86,6 +89,8 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
 
         <form id="form-tache" onsubmit="sauvegarderTache(event)">
             <input type="hidden" id="tache-id" value="">
+            <input type="hidden" id="tache-projet-id" value="">
+            <input type="hidden" id="tache-parent-id" value="">
 
             <div class="form-groupe">
                 <label class="form-label" for="tache-titre">
@@ -263,11 +268,15 @@ function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) 
         document.getElementById('tache-heure-debut').value = tache.heure_debut || '';
         document.getElementById('tache-recurrence').value = tache.recurrence || 'Une fois';
         document.getElementById('tache-auto-regenerer').checked = tache.auto_regenerer || false;
+        document.getElementById('tache-projet-id').value = tache.projet_id || '';
+        document.getElementById('tache-parent-id').value = tache.parent_id || '';
     } else {
         // Mode création
         tacheEnCoursId = null;
         titreModal.textContent = 'Nouvelle tâche';
         document.getElementById('tache-id').value = '';
+        document.getElementById('tache-projet-id').value = '';
+        document.getElementById('tache-parent-id').value = '';
         if (zonePrecochee) {
             document.getElementById('tache-zone').value = zonePrecochee;
         }
@@ -315,6 +324,10 @@ async function sauvegarderTache(event) {
         heure_debut: champHeure.value || null,
         recurrence: document.getElementById('tache-recurrence').value,
         auto_regenerer: document.getElementById('tache-auto-regenerer').checked,
+        projet_id: document.getElementById('tache-projet-id').value
+            ? parseInt(document.getElementById('tache-projet-id').value) : null,
+        parent_id: document.getElementById('tache-parent-id').value
+            ? parseInt(document.getElementById('tache-parent-id').value) : null,
     };
 
     const estModification = tacheEnCoursId !== null;

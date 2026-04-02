@@ -115,6 +115,8 @@ def creer_taches_lot():
             zone=donnees.get('zone', 'urgent_important'),
             heure_debut=donnees.get('heure_debut') or None,
             auto_regenerer=bool(donnees.get('auto_regenerer', False)),
+            projet_id=donnees.get('projet_id') or None,
+            parent_id=donnees.get('parent_id') or None,
         )
         db.session.add(t)
         taches_creees.append(t)
@@ -204,6 +206,8 @@ def creer_tache():
         zone=donnees.get('zone', 'urgent_important'),
         heure_debut=donnees.get('heure_debut') or None,
         auto_regenerer=bool(donnees.get('auto_regenerer', False)),
+        projet_id=donnees.get('projet_id') or None,
+        parent_id=donnees.get('parent_id') or None,
     )
 
     db.session.add(nouvelle_tache)
@@ -255,6 +259,12 @@ def modifier_tache(tache_id):
     if 'auto_regenerer' in donnees:
         tache.auto_regenerer = bool(donnees['auto_regenerer'])
 
+    if 'projet_id' in donnees:
+        tache.projet_id = donnees['projet_id'] or None
+
+    if 'parent_id' in donnees:
+        tache.parent_id = donnees['parent_id'] or None
+
     # Gestion du changement de zone (sauvegarder la zone précédente si passage en corbeille)
     zone_avant = tache.zone
     if 'zone' in donnees:
@@ -283,6 +293,8 @@ def modifier_tache(tache_id):
                 zone=zone_avant if zone_avant not in ('fait', 'corbeille') else 'urgent_important',
                 heure_debut=tache.heure_debut,
                 auto_regenerer=True,
+                projet_id=tache.projet_id,
+                parent_id=tache.parent_id,
             )
             db.session.add(prochaine)
             db.session.commit()
