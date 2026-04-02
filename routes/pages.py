@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template
 from models.task import db, Task
 from models.config_journee import ConfigJournee
@@ -41,23 +42,48 @@ def page_calendrier():
 @pages_bp.route('/dashboard')
 def page_tableau_de_bord():
     """Page Tableau de bord — Focus, Retards, Backlog."""
-    aujourd_hui = date.today()
+    tz_paris = ZoneInfo('Europe/Paris')
+    maintenant_paris = datetime.now(tz_paris)
+    aujourd_hui = maintenant_paris.date()
 
-    # ── Tâche focus : zone la plus prioritaire, retards d'abord ──
+    # ── Tâche focus : tâche en cours > urgent_important > urgent > important > neutre ──
     # Les tâches SANS date ne deviennent jamais le focus (elles restent dans le backlog)
-    zones_priorite = ['urgent_important', 'important', 'urgent', 'neutre']
+    zones_priorite = ['urgent_important', 'urgent', 'important', 'neutre']
     tache_focus = None
 
+    # 0) Tâche planifiée qui se déroule en ce moment — priorité absolue
+    now_h, now_m = maintenant_paris.hour, maintenant_paris.minute
+    now_total = now_h * 60 + now_m
+    taches_avec_heure = Task.query.filter(
+        Task.zone.notin_(['fait', 'corbeille']),
+        Task.heure_debut.isnot(None),
+    ).all()
+    taches_en_cours_maintenant = []
+    for t in taches_avec_heure:
+        try:
+            th, tm = map(int, t.heure_debut.split(':'))
+        except Exception:
+            continue
+        debut_total = th * 60 + tm
+        fin_total = debut_total + (t.duree_estimee or 30)
+        if debut_total <= now_total <= fin_total:
+            taches_en_cours_maintenant.append(t)
+    if taches_en_cours_maintenant:
+        taches_en_cours_maintenant.sort(key=lambda t: zones_priorite.index(t.zone) if t.zone in zones_priorite else 99)
+        tache_focus = taches_en_cours_maintenant[0]
+
+
     # 1) Retards (date dépassée) par ordre de priorité de zone
-    for zone in zones_priorite:
-        t = Task.query.filter(
-            Task.zone == zone,
-            Task.date_echeance.isnot(None),
-            Task.date_echeance <= aujourd_hui
-        ).order_by(Task.date_echeance.asc()).first()
-        if t:
-            tache_focus = t
-            break
+    if not tache_focus:
+        for zone in zones_priorite:
+            t = Task.query.filter(
+                Task.zone == zone,
+                Task.date_echeance.isnot(None),
+                Task.date_echeance <= aujourd_hui
+            ).order_by(Task.date_echeance.asc()).first()
+            if t:
+                tache_focus = t
+                break
 
     # 2) Sinon : tâches avec date à venir (prochaine échéance)
     if not tache_focus:
@@ -71,12 +97,36 @@ def page_tableau_de_bord():
                 tache_focus = t
                 break
 
-    # ── Retards : date passée, pas fait ni corbeille ──
-    retards = Task.query.filter(
+    # ── Retards : date passée OU heure dépassée aujourd'hui ──
+    retards_dates = Task.query.filter(
         Task.zone.notin_(['fait', 'corbeille']),
         Task.date_echeance.isnot(None),
         Task.date_echeance < aujourd_hui
     ).order_by(Task.date_echeance.asc()).all()
+
+    # Tâches d'aujourd'hui dont l'heure de fin est dépassée
+    taches_aujourd_hui_heure = Task.query.filter(
+        Task.zone.notin_(['fait', 'corbeille']),
+        Task.heure_debut.isnot(None),
+        Task.date_echeance == aujourd_hui
+    ).all()
+    retards_heure = []
+    for t in taches_aujourd_hui_heure:
+        try:
+            th, tm = map(int, t.heure_debut.split(':'))
+        except Exception:
+            continue
+        fin_total = th * 60 + tm + (t.duree_estimee or 30)
+        if fin_total < now_total:
+            retards_heure.append(t)
+
+    # Fusionner sans doublons, trier par date puis heure
+    ids_vus = {t.id for t in retards_dates}
+    retards = retards_dates + [t for t in retards_heure if t.id not in ids_vus]
+    retards.sort(key=lambda t: (
+        t.date_echeance.isoformat() if t.date_echeance else '',
+        t.heure_debut or ''
+    ))
 
     # Exclure la tâche focus des retards (déjà mise en avant)
     if tache_focus:
@@ -162,14 +212,19 @@ def page_ma_journee():
 @pages_bp.route('/recurrence')
 def page_recurrence():
     """Page Récurrence — tâches répétitives."""
+    zones_exclues = ['corbeille', 'fait']
     taches_quotidien = Task.query.filter(
-        Task.recurrence == 'Quotidien', Task.zone != 'corbeille'
+        Task.recurrence == 'Quotidien', Task.zone.notin_(zones_exclues)
     ).order_by(Task.date_echeance).all()
     taches_hebdo = Task.query.filter(
-        Task.recurrence == 'Hebdomadaire', Task.zone != 'corbeille'
+        Task.recurrence == 'Hebdomadaire', Task.zone.notin_(zones_exclues)
     ).order_by(Task.date_echeance).all()
     taches_mensuel = Task.query.filter(
-        Task.recurrence == 'Mensuel', Task.zone != 'corbeille'
+        Task.recurrence == 'Mensuel', Task.zone.notin_(zones_exclues)
+    ).order_by(Task.date_echeance).all()
+    taches_autres = Task.query.filter(
+        Task.recurrence == 'Une fois', Task.zone.notin_(zones_exclues),
+        Task.date_echeance.isnot(None)
     ).order_by(Task.date_echeance).all()
 
     return render_template(
@@ -177,6 +232,7 @@ def page_recurrence():
         taches_quotidien_json=json.dumps([t.to_dict() for t in taches_quotidien], ensure_ascii=False),
         taches_hebdo_json=json.dumps([t.to_dict() for t in taches_hebdo], ensure_ascii=False),
         taches_mensuel_json=json.dumps([t.to_dict() for t in taches_mensuel], ensure_ascii=False),
+        taches_autres_json=json.dumps([t.to_dict() for t in taches_autres], ensure_ascii=False),
     )
 
 
@@ -200,8 +256,15 @@ def page_projets():
 
 @pages_bp.route('/trash')
 def page_corbeille():
-    """Page Corbeille — tâches supprimées."""
+    """Page Historique — tâches terminées et corbeille."""
+    taches_fait = Task.query.filter_by(zone='fait').order_by(
+        Task.date_modification.desc()
+    ).all()
     taches_corbeille = Task.query.filter_by(zone='corbeille').order_by(
         Task.date_modification.desc()
     ).all()
-    return render_template('trash.html', taches=taches_corbeille)
+    return render_template(
+        'trash.html',
+        taches_fait_json=json.dumps([t.to_dict() for t in taches_fait], ensure_ascii=False),
+        taches_corbeille_json=json.dumps([t.to_dict() for t in taches_corbeille], ensure_ascii=False),
+    )

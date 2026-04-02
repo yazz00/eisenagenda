@@ -19,6 +19,7 @@ let tachesParType = {
     Quotidien:    [...tachesQuotidien],
     Hebdomadaire: [...tachesHebdo],
     Mensuel:      [...tachesMensuel],
+    Autres:       [...tachesAutres],
 };
 let datesSelectionnees = new Set();
 let dateMiniCal = new Date();
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     rendreListeRecurrence('Quotidien',    'liste-quotidien');
     rendreListeRecurrence('Hebdomadaire', 'liste-hebdo');
     rendreListeRecurrence('Mensuel',      'liste-mensuel');
+    rendreListeRecurrence('Autres',       'liste-autres');
     rendreMiniCal();
 
     // Gestionnaires pour les sélecteurs de jours (modal)
@@ -139,7 +141,7 @@ function creerCarteGroupe(groupe) {
                 <span class="rg-info">📦 ${nb} occurrence${nb > 1 ? 's' : ''}</span>
                 <span class="rg-info">📅 ${plageDates}</span>
                 ${prochaine ? `<span class="rg-info rg-prochaine">⏭ Prochaine : ${formaterDate(prochaine.date_echeance)}</span>` : ''}
-                ${groupe.duree_estimee ? `<span class="rg-info">⏱ ${groupe.duree_estimee} min</span>` : ''}
+                ${groupe.duree_estimee ? `<span class="rg-info">⏱ ${formaterDuree(groupe.duree_estimee)}</span>` : ''}
             </div>
         </div>
         <div class="recurrence-groupe-actions">
@@ -221,12 +223,16 @@ function mettreAJourChampsDates() {
     const groupeJoursSemaine = document.getElementById('groupe-jours-semaine');
     const groupeJoursMois    = document.getElementById('groupe-jours-mois');
 
+    // Libellé du champ date selon le type
+    const labelDate = document.querySelector('label[for="tache-date"]');
+    if (labelDate) labelDate.textContent = recurrence !== 'Une fois' ? 'Date de début' : "Date d'échéance";
+
     // Auto-régénération : visible pour Quotidien et Hebdomadaire uniquement
     const autoRegenVisible = recurrence === 'Quotidien' || recurrence === 'Hebdomadaire';
     groupeAutoRegen.style.display = autoRegenVisible ? 'block' : 'none';
 
-    // Récurrence classique = type ≠ "Une fois" ET pas d'auto-régénération
-    const recurrenceClassique = recurrence !== 'Une fois' && !autoRegen;
+    // Récurrence classique = type ≠ "Une fois", ≠ "Autres" ET pas d'auto-régénération
+    const recurrenceClassique = recurrence !== 'Une fois' && recurrence !== 'Autres' && !autoRegen;
 
     // Date de fin : visible en mode classique (pas d'auto-regen)
     groupeDateFin.style.display = recurrenceClassique ? 'block' : 'none';
@@ -239,7 +245,9 @@ function mettreAJourChampsDates() {
         (recurrence === 'Mensuel' && recurrenceClassique) ? 'block' : 'none';
 
     // Ajuster le submit selon le mode
-    if (recurrence === 'Hebdomadaire') {
+    if (recurrence === 'Autres') {
+        document.getElementById('form-tache').onsubmit = sauvegarderLotAutresRecurrence;
+    } else if (recurrence === 'Hebdomadaire') {
         // Auto-regen ou classique : toujours passer par le handler Hebdo
         document.getElementById('form-tache').onsubmit =
             autoRegen ? sauvegarderHebdoAutoRegen : sauvegarderRecurrenceHebdo;
@@ -250,6 +258,55 @@ function mettreAJourChampsDates() {
     } else {
         // Quotidien auto-regen, Une fois, ou Mensuel auto-regen
         document.getElementById('form-tache').onsubmit = sauvegarderTache;
+    }
+}
+
+async function sauvegarderLotAutresRecurrence(event) {
+    event.preventDefault();
+    const erreurs = document.getElementById('modal-erreurs');
+    erreurs.style.display = 'none';
+
+    const titre = document.getElementById('tache-titre').value.trim();
+    if (!titre) {
+        erreurs.textContent = 'Le titre est obligatoire.';
+        erreurs.style.display = 'block';
+        return;
+    }
+    if (datesModalSelectionnees.size === 0) {
+        erreurs.textContent = 'Sélectionne au moins une date dans le calendrier.';
+        erreurs.style.display = 'block';
+        return;
+    }
+
+    const donnees = {
+        titre,
+        description:  document.getElementById('tache-description').value.trim() || null,
+        duree_estimee: lireDureeMinutes(),
+        categorie:    document.getElementById('tache-categorie').value,
+        zone:         document.getElementById('tache-zone').value,
+        heure_debut:  document.getElementById('tache-heure-debut').value || null,
+        recurrence:   'Une fois',
+        dates:        [...datesModalSelectionnees].sort(),
+    };
+
+    try {
+        const rep = await fetch('/api/tasks/lot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(donnees),
+        });
+        const res = await rep.json();
+        if (!rep.ok) {
+            const msgs = res.erreurs || [res.erreur || 'Erreur'];
+            erreurs.innerHTML = msgs.join('<br>');
+            erreurs.style.display = 'block';
+            return;
+        }
+        res.forEach(t => apresModificationTache(t, false));
+        fermerModal();
+    } catch {
+        erreurs.textContent = 'Erreur de connexion.';
+        erreurs.style.display = 'block';
     }
 }
 
@@ -281,7 +338,7 @@ async function toggleAutoRegenGroupe(ids, actif, groupe) {
             body: JSON.stringify({ ids, champs: { auto_regenerer: actif } }),
         });
         // Mettre à jour en mémoire
-        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
+        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel', 'Autres']) {
             tachesParType[type].forEach(t => {
                 if (ids.includes(t.id)) t.auto_regenerer = actif;
             });
@@ -304,7 +361,7 @@ async function supprimerTache(id) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ zone: 'corbeille' }),
         });
-        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
+        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel', 'Autres']) {
             tachesParType[type] = tachesParType[type].filter(t => t.id !== id);
         }
         rendreListesRecurrence();
@@ -327,7 +384,7 @@ async function supprimerGroupe(ids) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids, champs: { zone: 'corbeille' } }),
         });
-        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
+        for (const type of ['Quotidien', 'Hebdomadaire', 'Mensuel', 'Autres']) {
             tachesParType[type] = tachesParType[type].filter(t => !ids.includes(t.id));
         }
         rendreListesRecurrence();
@@ -347,7 +404,7 @@ function ouvrirModalModifierGroupe(groupe, ids) {
         // Pré-remplir les champs partagés du groupe
         document.getElementById('tache-titre').value        = groupe.titre;
         document.getElementById('tache-description').value  = groupe.description || '';
-        document.getElementById('tache-duree').value        = groupe.duree_estimee || '';
+        remplirDuree(groupe.duree_estimee);
         document.getElementById('tache-categorie').value    = groupe.categorie || 'Autre';
         document.getElementById('tache-zone').value         = groupe.zone || 'urgent_important';
         document.getElementById('tache-heure-debut').value  = groupe.heure_debut || '';
@@ -380,8 +437,7 @@ async function sauvegarderModificationGroupe(event, ids, typeRecurrence) {
     const champs = {
         titre,
         description:   document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:     document.getElementById('tache-categorie').value,
         zone:          document.getElementById('tache-zone').value,
         heure_debut:   document.getElementById('tache-heure-debut').value || null,
@@ -419,6 +475,7 @@ function rendreListesRecurrence() {
     rendreListeRecurrence('Quotidien',    'liste-quotidien');
     rendreListeRecurrence('Hebdomadaire', 'liste-hebdo');
     rendreListeRecurrence('Mensuel',      'liste-mensuel');
+    rendreListeRecurrence('Autres',       'liste-autres');
 }
 
 // ============================================================
@@ -426,12 +483,12 @@ function rendreListesRecurrence() {
 // ============================================================
 
 function apresModificationTache(tache, estModification) {
-    const type = tache.recurrence;
-    if (!['Quotidien', 'Hebdomadaire', 'Mensuel'].includes(type)) return;
+    const type = tache.recurrence === 'Une fois' ? 'Autres' : tache.recurrence;
+    if (!['Quotidien', 'Hebdomadaire', 'Mensuel', 'Autres'].includes(type)) return;
 
     if (estModification) {
         // Retirer l'ancienne version de toutes les listes
-        for (const t of ['Quotidien', 'Hebdomadaire', 'Mensuel']) {
+        for (const t of ['Quotidien', 'Hebdomadaire', 'Mensuel', 'Autres']) {
             tachesParType[t] = tachesParType[t].filter(i => i.id !== tache.id);
         }
     }
@@ -559,8 +616,7 @@ async function sauvegarderRecurrenceClassique(event) {
     const donnees = {
         titre:        document.getElementById('tache-titre').value.trim(),
         description:  document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:    document.getElementById('tache-categorie').value,
         zone:         document.getElementById('tache-zone').value,
         heure_debut:  document.getElementById('tache-heure-debut').value || null,
@@ -620,8 +676,7 @@ async function sauvegarderHebdoAutoRegen(event) {
     const donnees = {
         titre:        document.getElementById('tache-titre').value.trim(),
         description:  document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:    document.getElementById('tache-categorie').value,
         zone:         document.getElementById('tache-zone').value,
         heure_debut:  document.getElementById('tache-heure-debut').value || null,
@@ -737,8 +792,7 @@ async function sauvegarderRecurrenceHebdo(event) {
     const donnees = {
         titre:        document.getElementById('tache-titre').value.trim(),
         description:  document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:    document.getElementById('tache-categorie').value,
         zone:         document.getElementById('tache-zone').value,
         heure_debut:  document.getElementById('tache-heure-debut').value || null,
@@ -822,8 +876,7 @@ async function sauvegarderRecurrenceMensuel(event) {
     const donnees = {
         titre:        document.getElementById('tache-titre').value.trim(),
         description:  document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:    document.getElementById('tache-categorie').value,
         zone:         document.getElementById('tache-zone').value,
         heure_debut:  document.getElementById('tache-heure-debut').value || null,
@@ -952,8 +1005,7 @@ async function sauvegarderLot(event) {
     const donnees = {
         titre:        document.getElementById('tache-titre').value.trim(),
         description:  document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:    document.getElementById('tache-categorie').value,
         zone:         document.getElementById('tache-zone').value,
         heure_debut:  document.getElementById('tache-heure-debut').value || null,

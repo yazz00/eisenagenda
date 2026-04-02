@@ -1,5 +1,13 @@
 {% extends 'base.html' %}
 
+{% macro duree(min) %}
+  {%- if min >= 60 -%}
+    {{ min // 60 }}h{% if min % 60 %}{{ '%02d' % (min % 60) }}{% endif %}
+  {%- else -%}
+    {{ min }}min
+  {%- endif -%}
+{% endmacro %}
+
 {% block titre %}Tableau de bord — EisenAgenda{% endblock %}
 
 {% block content %}
@@ -62,13 +70,7 @@
                     <span class="db-meta-neutre">📅 Pas de date</span>
                     {% endif %}
                     {% if tache_focus.duree_estimee %}
-                    <span class="db-meta-duree">⏱
-                        {% if tache_focus.duree_estimee >= 60 %}
-                            {{ tache_focus.duree_estimee // 60 }}h{{ '%02d' % (tache_focus.duree_estimee % 60) }}
-                        {% else %}
-                            {{ tache_focus.duree_estimee }} min
-                        {% endif %}
-                    </span>
+                    <span class="db-meta-duree">⏱ {{ duree(tache_focus.duree_estimee) }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -121,7 +123,7 @@
                             <span class="db-meta-projet-sm">{{ projets[tache.projet_id].icone }} {{ projets[tache.projet_id].nom }}</span>
                             {% endif %}
                             {% if tache.duree_estimee %}
-                            <span class="db-meta-duree-sm">⏱ {{ tache.duree_estimee }} min</span>
+                            <span class="db-meta-duree-sm">⏱ {{ duree(tache.duree_estimee) }}</span>
                             {% endif %}
                         </div>
                     </div>
@@ -171,7 +173,7 @@
                             <span class="db-meta-projet-sm">{{ projets[tache.projet_id].icone }} {{ projets[tache.projet_id].nom }}</span>
                             {% endif %}
                             {% if tache.duree_estimee %}
-                            <span class="db-meta-duree-sm">⏱ {{ tache.duree_estimee }} min</span>
+                            <span class="db-meta-duree-sm">⏱ {{ duree(tache.duree_estimee) }}</span>
                             {% endif %}
                         </div>
                     </div>
@@ -213,7 +215,7 @@
                  ondragover="event.preventDefault(); this.classList.add('drag-over')"
                  ondragleave="this.classList.remove('drag-over')"
                  ondrop="deposerTache(event, this)">
-                <div class="zone-titre">🔵 Important — Planifier</div>
+                <div class="zone-titre">🔵 Pas urgent + Important</div>
                 <div class="zone-taches" id="zone-important"></div>
             </div>
 
@@ -221,7 +223,7 @@
                  ondragover="event.preventDefault(); this.classList.add('drag-over')"
                  ondragleave="this.classList.remove('drag-over')"
                  ondrop="deposerTache(event, this)">
-                <div class="zone-titre">🟡 Urgent — Déléguer</div>
+                <div class="zone-titre">🟡 Urgent + Pas important</div>
                 <div class="zone-taches" id="zone-urgent"></div>
             </div>
 
@@ -229,7 +231,7 @@
                  ondragover="event.preventDefault(); this.classList.add('drag-over')"
                  ondragleave="this.classList.remove('drag-over')"
                  ondrop="deposerTache(event, this)">
-                <div class="zone-titre">⚫ Pas urgent / Pas important</div>
+                <div class="zone-titre">⚫ Pas urgent + Pas important</div>
                 <div class="zone-taches" id="zone-neutre"></div>
             </div>
 

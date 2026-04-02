@@ -24,11 +24,12 @@ function calculerPlageHoraire(tachesAvecHeure) {
     let heureMax = TL_HEURE_FIN;
 
     tachesAvecHeure.forEach(t => {
-        if (!t.heure_debut) return;
-        const minDebut = heureVersMinutes(t.heure_debut);
-        const minFin   = minDebut + (t.duree_estimee || 30);
-        const hDebut   = Math.floor(minDebut / 60);
-        const hFin     = Math.ceil(minFin   / 60);
+        const minDebut = t._debutAffiche !== undefined ? t._debutAffiche : (t.heure_debut ? heureVersMinutes(t.heure_debut) : null);
+        if (minDebut === null) return;
+        const duree  = t._dureeAffichee !== undefined ? t._dureeAffichee : (t.duree_estimee || 30);
+        const minFin = minDebut + duree;
+        const hDebut = Math.floor(minDebut / 60);
+        const hFin   = Math.ceil(minFin   / 60);
 
         if (hDebut < heureMin) heureMin = Math.max(0,  hDebut - 1);
         if (hFin   > heureMax) heureMax = Math.min(25, hFin   + 1);
@@ -100,7 +101,7 @@ function rendreJour() {
     document.getElementById('titre-periode').textContent = estAujourd_hui ? `☀ Aujourd'hui — ${label}` : label;
 
     const tachesJour = taches.filter(t => t.date_echeance === dateISO);
-    const planifiees = tachesJour.filter(t => t.heure_debut);
+    const planifiees = tachesPlanifieesAvecDebordement(dateISO);
     const nonPlanif  = tachesJour.filter(t => !t.heure_debut);
 
     const conteneur = document.getElementById('calendrier-conteneur');
@@ -163,7 +164,7 @@ function rendreVueMultiJours(premierJour, nbJours) {
             date: d,
             iso,
             label: `${JOURS_COURTS[(d.getDay() + 6) % 7]} ${d.getDate()}`,
-            planifiees: tachesJour.filter(t => t.heure_debut),
+            planifiees: tachesPlanifieesAvecDebordement(iso),
             nonPlanif:  tachesJour.filter(t => !t.heure_debut),
         });
     }
@@ -462,8 +463,8 @@ function creerBlocsPauses(conteneur, pxParMin, compact,
 }
 
 function creerBlocTache(tache, pxParMin, minDebut = TL_MIN_DEBUT) {
-    const min    = heureVersMinutes(tache.heure_debut);
-    const duree  = tache.duree_estimee || 30;
+    const min   = tache._debutAffiche !== undefined ? tache._debutAffiche : heureVersMinutes(tache.heure_debut);
+    const duree = tache._dureeAffichee !== undefined ? tache._dureeAffichee : (tache.duree_estimee || 30);
     const hauteur = Math.max(duree * pxParMin, 22);
 
     const classes = {
@@ -472,14 +473,26 @@ function creerBlocTache(tache, pxParMin, minDebut = TL_MIN_DEBUT) {
     };
 
     const bloc = document.createElement('div');
-    bloc.className = `bloc-tache ${classes[tache.zone] || 'zone-bloc-gris'}`;
+    const debordeMinuit = !tache._suite && (heureVersMinutes(tache.heure_debut) + (tache.duree_estimee || 30)) > 1440;
+    let className = `bloc-tache ${classes[tache.zone] || 'zone-bloc-gris'}`;
+    if (tache._suite) className += ' bloc-tache-suite';
+    if (debordeMinuit) className += ' bloc-tache-coupe';
+    bloc.className = className;
     bloc.style.top    = ((min - minDebut) * pxParMin) + 'px';
     bloc.style.height = hauteur + 'px';
 
-    const heureFin = minutesVersHeure(min + duree);
+    const debutReel = heureVersMinutes(tache.heure_debut);
+    const finReel   = minutesVersHeure(debutReel + (tache.duree_estimee || 30));
+    const labelHeure = tache._suite
+        ? `00:00 → ${finReel} (suite)`
+        : `${tache.heure_debut} → ${minutesVersHeure(min + duree)}${duree < (tache.duree_estimee || 30) ? ' →' : ''}`;
+
+    const htmlDesc = (hauteur >= 54 && tache.description)
+        ? `<div class="bloc-tache-desc">${echapper(tache.description)}</div>` : '';
     bloc.innerHTML = hauteur >= 36
         ? `<div class="bloc-tache-titre">${echapper(tache.titre)}</div>
-           <div class="bloc-tache-meta">${tache.heure_debut} → ${heureFin}</div>`
+           ${htmlDesc}
+           <div class="bloc-tache-meta">${labelHeure}</div>`
         : `<div class="bloc-tache-titre">${echapper(tache.titre)}</div>`;
 
     bloc.addEventListener('click', e => { e.stopPropagation(); ouvrirModal(tache); });
@@ -569,7 +582,7 @@ function creerCartePanneau(t, dateISO) {
         <div class="carte-panneau-point zone-point-${t.zone.replace(/_/g, '-')}"></div>
         <div class="carte-panneau-info">
             <div class="carte-panneau-titre">${echapper(t.titre)}</div>
-            ${t.duree_estimee ? `<div class="carte-panneau-duree">⏱ ${t.duree_estimee} min</div>` : ''}
+            ${t.duree_estimee ? `<div class="carte-panneau-duree">⏱ ${formaterDuree(t.duree_estimee)}</div>` : ''}
         </div>
         <button class="btn-action btn-modifier"
                 onclick="ouvrirModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">✏</button>
@@ -668,6 +681,42 @@ function apresModificationTache(tacheMisAJour, estModification) {
 // ============================================================
 // UTILITAIRES
 // ============================================================
+
+/**
+ * Retourne les tâches planifiées pour un jour ISO donné,
+ * en incluant les tâches du jour précédent qui débordent sur minuit.
+ * Chaque tâche peut avoir un _offsetMin (décalage depuis minuit pour les débordements).
+ */
+function tachesPlanifieesAvecDebordement(isoJour) {
+    const resultat = [];
+
+    // Tâches du jour lui-même
+    taches.filter(t => t.date_echeance === isoJour && t.heure_debut).forEach(t => {
+        const debut = heureVersMinutes(t.heure_debut);
+        const fin   = debut + (t.duree_estimee || 30);
+        if (fin > 1440) {
+            // Tronqué à minuit
+            resultat.push({ ...t, _dureeAffichee: 1440 - debut, _suite: false });
+        } else {
+            resultat.push({ ...t, _dureeAffichee: t.duree_estimee || 30, _suite: false });
+        }
+    });
+
+    // Tâches du jour PRÉCÉDENT qui débordent sur ce jour
+    const datePrecedente = new Date(isoJour + 'T00:00:00');
+    datePrecedente.setDate(datePrecedente.getDate() - 1);
+    const isoPrecedent = formaterDateISO(datePrecedente);
+    taches.filter(t => t.date_echeance === isoPrecedent && t.heure_debut).forEach(t => {
+        const debut = heureVersMinutes(t.heure_debut);
+        const fin   = debut + (t.duree_estimee || 30);
+        if (fin > 1440) {
+            // La partie qui déborde sur ce jour (de 0 à fin - 1440)
+            resultat.push({ ...t, _debutAffiche: 0, _dureeAffichee: fin - 1440, _suite: true });
+        }
+    });
+
+    return resultat;
+}
 
 function heureVersMinutes(heure) {
     const [h, m] = heure.split(':').map(Number);

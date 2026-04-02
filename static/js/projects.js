@@ -48,12 +48,16 @@ function mettreAJourChampsDates() {
     const groupeJoursSemaine = document.getElementById('groupe-jours-semaine');
     const groupeJoursMois    = document.getElementById('groupe-jours-mois');
 
+    // Libellé du champ date selon le type
+    const labelDate = document.querySelector('label[for="tache-date"]');
+    if (labelDate) labelDate.textContent = recurrence !== 'Une fois' ? 'Date de début' : "Date d'échéance";
+
     // Auto-regen : visible pour Quotidien et Hebdomadaire
     groupeAutoRegen.style.display =
         (recurrence === 'Quotidien' || recurrence === 'Hebdomadaire') ? 'block' : 'none';
 
-    // Récurrence classique = type ≠ "Une fois" ET pas d'auto-régénération
-    const recurrenceClassique = recurrence !== 'Une fois' && !autoRegen;
+    // Récurrence classique = type ≠ "Une fois", ≠ "Autres" ET pas d'auto-régénération
+    const recurrenceClassique = recurrence !== 'Une fois' && recurrence !== 'Autres' && !autoRegen;
 
     // Date de fin : visible en mode classique
     groupeDateFin.style.display = recurrenceClassique ? 'block' : 'none';
@@ -65,8 +69,17 @@ function mettreAJourChampsDates() {
     groupeJoursMois.style.display =
         (recurrence === 'Mensuel' && recurrenceClassique) ? 'block' : 'none';
 
+    // Mini-calendrier modal : visible uniquement pour "Autres"
+    const groupeMiniCal = document.getElementById('groupe-mini-cal-modal');
+    if (groupeMiniCal) {
+        groupeMiniCal.style.display = recurrence === 'Autres' ? 'block' : 'none';
+        if (recurrence === 'Autres') rendreMiniCalModal();
+    }
+
     // Ajuster le submit selon le mode
-    if (recurrence === 'Hebdomadaire') {
+    if (recurrence === 'Autres') {
+        document.getElementById('form-tache').onsubmit = sauvegarderLotProjet;
+    } else if (recurrence === 'Hebdomadaire') {
         document.getElementById('form-tache').onsubmit =
             autoRegen ? sauvegarderHebdoAutoRegenProjet : sauvegarderRecurrenceHebdoProjet;
     } else if (recurrence === 'Mensuel' && recurrenceClassique) {
@@ -131,8 +144,7 @@ function _collecterDonneesProjet() {
     return {
         titre:        document.getElementById('tache-titre').value.trim(),
         description:  document.getElementById('tache-description').value.trim() || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value) : null,
+        duree_estimee: lireDureeMinutes(),
         categorie:    document.getElementById('tache-categorie').value,
         zone:         document.getElementById('tache-zone').value,
         heure_debut:  document.getElementById('tache-heure-debut').value || null,
@@ -502,7 +514,7 @@ function creerLigneArbre(tache, profondeur, projetId) {
     if (tache.duree_estimee) {
         const dureeSpan = document.createElement('span');
         dureeSpan.className = 'arbre-duree';
-        dureeSpan.textContent = `⏱ ${tache.duree_estimee} min`;
+        dureeSpan.textContent = `⏱ ${formaterDuree(tache.duree_estimee)}`;
         meta.appendChild(dureeSpan);
     }
 
@@ -759,4 +771,58 @@ function echapper(texte) {
     const d = document.createElement('div');
     d.appendChild(document.createTextNode(texte));
     return d.innerHTML;
+}
+
+// ============================================================
+// SAUVEGARDE LOT (récurrence "Autres" — dates spécifiques)
+// ============================================================
+
+async function sauvegarderLotProjet(event) {
+    event.preventDefault();
+    const erreurs = document.getElementById('modal-erreurs');
+    erreurs.style.display = 'none';
+
+    const donnees = {
+        titre:        document.getElementById('tache-titre').value.trim(),
+        description:  document.getElementById('tache-description').value.trim() || null,
+        duree_estimee: lireDureeMinutes(),
+        categorie:    document.getElementById('tache-categorie').value,
+        zone:         document.getElementById('tache-zone').value,
+        heure_debut:  document.getElementById('tache-heure-debut').value || null,
+        projet_id:    document.getElementById('tache-projet-id').value
+            ? parseInt(document.getElementById('tache-projet-id').value) : null,
+        recurrence:   'Une fois',
+        dates:        [...datesModalSelectionnees].sort(),
+    };
+
+    if (!donnees.titre) {
+        erreurs.textContent = 'Le titre est obligatoire.';
+        erreurs.style.display = 'block';
+        return;
+    }
+    if (donnees.dates.length === 0) {
+        erreurs.textContent = 'Sélectionne au moins une date dans le calendrier.';
+        erreurs.style.display = 'block';
+        return;
+    }
+
+    try {
+        const rep = await fetch('/api/tasks/lot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(donnees),
+        });
+        const res = await rep.json();
+        if (!rep.ok) {
+            const msgs = res.erreurs || [res.erreur || 'Erreur'];
+            erreurs.innerHTML = msgs.join('<br>');
+            erreurs.style.display = 'block';
+            return;
+        }
+        fermerModal();
+        if (projetActifId) chargerProjet(projetActifId);
+    } catch {
+        erreurs.textContent = 'Erreur de connexion.';
+        erreurs.style.display = 'block';
+    }
 }

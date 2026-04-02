@@ -107,7 +107,7 @@ def creer_taches_lot():
     for d in dates_valides:
         t = Task(
             titre=donnees['titre'].strip(),
-            description=donnees.get('description', '').strip() or None,
+            description=(donnees.get('description') or '').strip() or None,
             date_echeance=d,
             duree_estimee=duree_estimee,
             categorie=donnees.get('categorie', 'Autre'),
@@ -198,7 +198,7 @@ def creer_tache():
 
     nouvelle_tache = Task(
         titre=donnees['titre'].strip(),
-        description=donnees.get('description', '').strip() or None,
+        description=(donnees.get('description') or '').strip() or None,
         date_echeance=date_echeance,
         duree_estimee=duree_estimee,
         categorie=donnees.get('categorie', 'Autre'),
@@ -233,7 +233,7 @@ def modifier_tache(tache_id):
         tache.titre = donnees['titre'].strip()
 
     if 'description' in donnees:
-        tache.description = donnees['description'].strip() or None
+        tache.description = (donnees['description'] or '').strip() or None
 
     if 'date_echeance' in donnees:
         if donnees['date_echeance']:

@@ -1,143 +1,185 @@
 {% extends 'base.html' %}
 
-{% block titre %}Corbeille — EisenAgenda{% endblock %}
+{% block titre %}Historique — EisenAgenda{% endblock %}
 
 {% block content %}
 
-<div class="corbeille-entete">
-    <h1 class="titre-page" style="margin-bottom:0;">🗑 Corbeille</h1>
-    {% if taches %}
-    <button class="btn btn-danger" onclick="viderCorbeille()">
-        🗑 Vider la corbeille ({{ taches | length }})
-    </button>
-    {% endif %}
-</div>
+<h1 class="titre-page">📋 Historique</h1>
 
-{% if taches %}
-
-<div class="liste-corbeille" id="liste-corbeille">
-    {% for tache in taches %}
-    <div class="carte-corbeille" id="carte-{{ tache.id }}">
-        <div class="carte-corbeille-info">
-            <div class="carte-corbeille-titre">{{ tache.titre }}</div>
-            <div class="carte-corbeille-meta">
-                <span>
-                    Zone d'origine :
-                    {% if tache.zone_precedente == 'urgent_important' %}🔴 Urgent + Important
-                    {% elif tache.zone_precedente == 'important' %}🔵 Important
-                    {% elif tache.zone_precedente == 'urgent' %}🟡 Urgent
-                    {% elif tache.zone_precedente == 'neutre' %}⚫ Neutre
-                    {% elif tache.zone_precedente == 'en_cours' %}⏳ En cours
-                    {% elif tache.zone_precedente == 'fait' %}✅ Fait
-                    {% else %}—
-                    {% endif %}
-                </span>
-                <span>Supprimée le {{ tache.date_modification.strftime('%d/%m/%Y à %H:%M') }}</span>
-                {% if tache.categorie %}
-                <span>{{ tache.categorie }}</span>
-                {% endif %}
-            </div>
-            {% if tache.description %}
-            <div style="font-size:0.82rem; color:var(--texte-secondaire); margin-top:0.25rem;">
-                {{ tache.description[:120] }}{% if tache.description | length > 120 %}...{% endif %}
-            </div>
-            {% endif %}
-        </div>
-        <div class="carte-corbeille-actions">
-            <button class="btn btn-secondaire" onclick="restaurerTache({{ tache.id }})">
-                ↩ Restaurer
-            </button>
-            <button class="btn btn-danger" onclick="supprimerDefinitivement({{ tache.id }})">
-                🗑 Supprimer
-            </button>
+<!-- ===== TERMINÉES ===== -->
+<div class="recurrence-section">
+    <div class="recurrence-section-entete">
+        <div class="recurrence-section-titre">
+            <span class="recurrence-badge" style="background:#dcfce7;color:#166534;">✅ Terminées</span>
+            <span class="recurrence-section-label" id="label-fait"></span>
         </div>
     </div>
-    {% endfor %}
+    <div id="liste-fait" class="historique-liste"></div>
 </div>
 
-{% else %}
-
-<div class="vide-message">
-    <div class="icone">🗑</div>
-    <p>La corbeille est vide.</p>
-    <p style="margin-top:0.5rem; font-size:0.85rem;">
-        Les tâches supprimées apparaissent ici avant d'être définitivement effacées.
-    </p>
+<!-- ===== CORBEILLE ===== -->
+<div class="recurrence-section">
+    <div class="recurrence-section-entete">
+        <div class="recurrence-section-titre">
+            <span class="recurrence-badge" style="background:#fee2e2;color:#991b1b;">🗑 Corbeille</span>
+            <span class="recurrence-section-label" id="label-corbeille"></span>
+        </div>
+        <button class="btn btn-danger btn-sm" id="btn-vider" onclick="viderCorbeille()" style="display:none;">
+            Vider la corbeille
+        </button>
+    </div>
+    <div id="liste-corbeille" class="historique-liste"></div>
 </div>
 
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-async function restaurerTache(id) {
-    try {
-        const reponse = await fetch(`/api/tasks/${id}/restaurer`, { method: 'POST' });
-        if (reponse.ok) {
-            // Supprimer la carte de l'interface
-            const carte = document.getElementById(`carte-${id}`);
-            if (carte) {
-                carte.style.transition = 'opacity 0.3s';
-                carte.style.opacity = '0';
-                setTimeout(() => {
-                    carte.remove();
-                    verifierCorbeille();
-                }, 300);
-            }
-        } else {
-            const data = await reponse.json();
-            alert(data.erreur || 'Erreur lors de la restauration.');
-        }
-    } catch (err) {
-        alert('Erreur de connexion au serveur.');
-    }
+const tachesFait      = {{ taches_fait_json | safe }};
+const tachesCorbeille = {{ taches_corbeille_json | safe }};
+
+const CAT_DOT = {
+    'Travail':   'cat-dot-travail',
+    'Personnel': 'cat-dot-personnel',
+    'Santé':     'cat-dot-sante',
+    'Autre':     'cat-dot-autre',
+};
+
+const ZONES_LABELS = {
+    urgent_important: '🔴 Urgent + Important',
+    important:        '🔵 Important',
+    urgent:           '🟡 Urgent',
+    neutre:           '⚫ Neutre',
+};
+
+function formaterDate(iso) {
+    if (!iso) return '';
+    const [a, m, j] = iso.split('-');
+    return `${j}/${m}/${a}`;
 }
 
-async function supprimerDefinitivement(id) {
-    if (!confirm('Supprimer définitivement cette tâche ? Cette action est irréversible.')) return;
+function echapper(t) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(t || ''));
+    return d.innerHTML;
+}
 
-    try {
-        const reponse = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-        if (reponse.ok) {
-            const carte = document.getElementById(`carte-${id}`);
-            if (carte) {
-                carte.style.transition = 'opacity 0.3s';
-                carte.style.opacity = '0';
-                setTimeout(() => {
-                    carte.remove();
-                    verifierCorbeille();
-                }, 300);
-            }
-        } else {
-            const data = await reponse.json();
-            alert(data.erreur || 'Erreur lors de la suppression.');
-        }
-    } catch (err) {
-        alert('Erreur de connexion au serveur.');
+function creerCarte(tache, estCorbeille) {
+    const carte = document.createElement('div');
+    carte.className = 'carte-tache';
+    carte.id = `carte-${tache.id}`;
+
+    const dot = CAT_DOT[tache.categorie] || 'cat-dot-autre';
+
+    let htmlDate = '';
+    if (tache.date_echeance) {
+        htmlDate = `<span class="carte-tache-date">📅 ${formaterDate(tache.date_echeance)}</span>`;
     }
+    let htmlDuree = '';
+    if (tache.duree_estimee) {
+        htmlDuree = `<span class="carte-tache-duree">⏱ ${formaterDuree(tache.duree_estimee)}</span>`;
+    }
+    const zoneLabel = tache.zone_precedente ? (ZONES_LABELS[tache.zone_precedente] || '') : (ZONES_LABELS[tache.zone] || '');
+    const htmlZone = zoneLabel ? `<span class="carte-tache-date" style="opacity:0.7;">${zoneLabel}</span>` : '';
+
+    const actionsHtml = estCorbeille
+        ? `<button class="btn-action" title="Restaurer" onclick="restaurer(${tache.id}); event.stopPropagation();">↩</button>
+           <button class="btn-action btn-corbeille" title="Supprimer définitivement" onclick="supprimerDef(${tache.id}); event.stopPropagation();">🗑</button>`
+        : `<button class="btn-action btn-modifier" title="Modifier" onclick="ouvrirModal(${JSON.stringify(tache)}); event.stopPropagation();">✏</button>
+           <button class="btn-action btn-corbeille" title="Mettre à la corbeille" onclick="mettreCorbeille(${tache.id}); event.stopPropagation();">🗑</button>`;
+
+    carte.innerHTML = `
+        <span class="carte-cat-dot ${dot}"></span>
+        <span class="carte-tache-titre">${echapper(tache.titre)}</span>
+        <div class="carte-tache-meta">
+            ${htmlZone}
+            ${htmlDate}
+            ${htmlDuree}
+        </div>
+        <div class="carte-tache-actions">${actionsHtml}</div>
+    `;
+    return carte;
+}
+
+function rendreListe(taches, idConteneur, estCorbeille) {
+    const conteneur = document.getElementById(idConteneur);
+    conteneur.innerHTML = '';
+    if (taches.length === 0) {
+        conteneur.innerHTML = `<p class="recurrence-vide">${estCorbeille ? 'La corbeille est vide.' : 'Aucune tâche terminée.'}</p>`;
+        return;
+    }
+    taches.forEach(t => conteneur.appendChild(creerCarte(t, estCorbeille)));
+}
+
+function mettreAJourCompteurs() {
+    const nbFait = document.getElementById('liste-fait').querySelectorAll('.carte-tache').length;
+    const nbCorb = document.getElementById('liste-corbeille').querySelectorAll('.carte-tache').length;
+    document.getElementById('label-fait').textContent = `${nbFait} tâche${nbFait > 1 ? 's' : ''}`;
+    document.getElementById('label-corbeille').textContent = `${nbCorb} tâche${nbCorb > 1 ? 's' : ''}`;
+    document.getElementById('btn-vider').style.display = nbCorb > 0 ? '' : 'none';
+}
+
+function retirerCarte(id, idListe) {
+    const carte = document.getElementById(`carte-${id}`);
+    if (!carte) return;
+    carte.style.transition = 'opacity 0.25s';
+    carte.style.opacity = '0';
+    setTimeout(() => {
+        carte.remove();
+        const conteneur = document.getElementById(idListe);
+        if (conteneur.querySelectorAll('.carte-tache').length === 0) {
+            const vide = idListe === 'liste-corbeille' ? 'La corbeille est vide.' : 'Aucune tâche terminée.';
+            conteneur.innerHTML = `<p class="recurrence-vide">${vide}</p>`;
+        }
+        mettreAJourCompteurs();
+    }, 250);
+}
+
+async function restaurer(id) {
+    try {
+        const rep = await fetch(`/api/tasks/${id}/restaurer`, { method: 'POST' });
+        if (rep.ok) retirerCarte(id, 'liste-corbeille');
+        else { const d = await rep.json(); alert(d.erreur || 'Erreur.'); }
+    } catch { alert('Erreur de connexion.'); }
+}
+
+async function supprimerDef(id) {
+    if (!confirm('Supprimer définitivement ? Action irréversible.')) return;
+    try {
+        const rep = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+        if (rep.ok) retirerCarte(id, 'liste-corbeille');
+        else { const d = await rep.json(); alert(d.erreur || 'Erreur.'); }
+    } catch { alert('Erreur de connexion.'); }
+}
+
+async function mettreCorbeille(id) {
+    try {
+        const rep = await fetch(`/api/tasks/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zone: 'corbeille' }),
+        });
+        if (rep.ok) retirerCarte(id, 'liste-fait');
+        else { const d = await rep.json(); alert(d.erreur || 'Erreur.'); }
+    } catch { alert('Erreur de connexion.'); }
 }
 
 async function viderCorbeille() {
-    if (!confirm('Vider toute la corbeille ? Cette action est irréversible.')) return;
-
+    if (!confirm('Vider toute la corbeille ? Action irréversible.')) return;
     try {
-        const reponse = await fetch('/api/taches/vider-corbeille', { method: 'POST' });
-        if (reponse.ok) {
-            window.location.reload();
-        } else {
-            alert('Erreur lors du vidage de la corbeille.');
-        }
-    } catch (err) {
-        alert('Erreur de connexion au serveur.');
-    }
+        const rep = await fetch('/api/taches/vider-corbeille', { method: 'POST' });
+        if (rep.ok) window.location.reload();
+        else alert('Erreur lors du vidage.');
+    } catch { alert('Erreur de connexion.'); }
 }
 
-function verifierCorbeille() {
-    // Si plus aucune carte, afficher le message vide
-    const liste = document.getElementById('liste-corbeille');
-    if (liste && liste.children.length === 0) {
-        window.location.reload();
-    }
+function apresModificationTache(tache) {
+    window.location.reload();
 }
+
+// Initialisation
+rendreListe(tachesFait,      'liste-fait',      false);
+rendreListe(tachesCorbeille, 'liste-corbeille', true);
+mettreAJourCompteurs();
 </script>
 {% endblock %}

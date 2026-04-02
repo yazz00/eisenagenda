@@ -53,8 +53,11 @@
     <div class="recurrence-section-entete">
         <div class="recurrence-section-titre">
             <span class="recurrence-badge badge-autres">Autres</span>
-            <span class="recurrence-section-label">Sélectionne des dates spécifiques</span>
+            <span class="recurrence-section-label">Tâches ponctuelles planifiées</span>
         </div>
+    </div>
+    <div class="recurrence-liste" id="liste-autres">
+        <!-- rempli par JS -->
     </div>
 
     <div class="autres-layout">
@@ -97,6 +100,7 @@
 const tachesQuotidien  = {{ taches_quotidien_json | safe }};
 const tachesHebdo      = {{ taches_hebdo_json | safe }};
 const tachesMensuel    = {{ taches_mensuel_json | safe }};
+const tachesAutres     = {{ taches_autres_json | safe }};
 </script>
 <script src="{{ url_for('static', filename='js/recurrence.js') }}"></script>
 {% endblock %}

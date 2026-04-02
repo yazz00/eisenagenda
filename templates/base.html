@@ -29,7 +29,7 @@
             <span class="sidebar-icone">🗂</span><span class="sidebar-texte">Vue d'ensemble</span>
         </a>
         <a href="/trash" class="sidebar-lien {% if request.endpoint == 'pages.page_corbeille' %}actif{% endif %}" title="Corbeille">
-            <span class="sidebar-icone">🗑</span><span class="sidebar-texte">Corbeille</span>
+            <span class="sidebar-icone">📋</span><span class="sidebar-texte">Historique</span>
         </a>
     </nav>
 
@@ -109,9 +109,17 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
                     <input type="date" id="tache-date" class="form-input">
                 </div>
                 <div class="form-groupe">
-                    <label class="form-label" for="tache-duree">Durée estimée (min)</label>
-                    <input type="number" id="tache-duree" class="form-input"
-                           placeholder="Ex : 30" min="0" step="5">
+                    <label class="form-label">Durée estimée</label>
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <input type="number" id="tache-duree-h" class="form-input"
+                               placeholder="0" min="0" max="23" step="1"
+                               style="width:60px; text-align:center;">
+                        <span style="color:var(--texte-secondaire); font-size:0.85rem;">h</span>
+                        <input type="number" id="tache-duree-m" class="form-input"
+                               placeholder="0" min="0" max="59" step="5"
+                               style="width:60px; text-align:center;">
+                        <span style="color:var(--texte-secondaire); font-size:0.85rem;">min</span>
+                    </div>
                 </div>
             </div>
 
@@ -134,6 +142,7 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
                             <option value="Quotidien">Quotidien</option>
                             <option value="Hebdomadaire">Hebdomadaire</option>
                             <option value="Mensuel">Mensuel</option>
+                            <option value="Autres">Autres (dates spécifiques)</option>
                         </select>
                     </div>
                 </div>
@@ -187,6 +196,30 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
                     </div>
                 </div>
 
+                <!-- Mini-calendrier pour "Autres" -->
+                <div id="groupe-mini-cal-modal" style="display:none;">
+                    <div class="form-groupe">
+                        <label class="form-label">Sélectionne les dates</label>
+                        <div class="mini-cal-conteneur" style="max-width:100%;">
+                            <div class="mini-cal-nav">
+                                <button type="button" class="btn btn-secondaire btn-sm" onclick="naviguerMiniCalModal(-1)">&#8249;</button>
+                                <span id="mini-cal-modal-titre" class="mini-cal-titre"></span>
+                                <button type="button" class="btn btn-secondaire btn-sm" onclick="naviguerMiniCalModal(1)">&#8250;</button>
+                            </div>
+                            <div class="mini-cal-grille">
+                                <div class="mini-cal-entetes">
+                                    <span>Lu</span><span>Ma</span><span>Me</span>
+                                    <span>Je</span><span>Ve</span><span>Sa</span><span>Di</span>
+                                </div>
+                                <div class="mini-cal-jours" id="mini-cal-modal-jours"></div>
+                            </div>
+                        </div>
+                        <div id="modal-dates-liste" class="autres-dates-liste" style="margin-top:0.5rem;">
+                            <span style="color:var(--texte-secondaire);font-size:0.85rem;">Aucune date sélectionnée</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="form-grille-2">
@@ -203,9 +236,9 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
                     <label class="form-label" for="tache-zone">Zone Eisenhower</label>
                     <select id="tache-zone" class="form-select">
                         <option value="urgent_important">🔴 Urgent + Important</option>
-                        <option value="important">🔵 Important (planifier)</option>
-                        <option value="urgent">🟡 Urgent (déléguer)</option>
-                        <option value="neutre">⚫ Pas urgent/important</option>
+                        <option value="important">🔵 Pas urgent + Important</option>
+                        <option value="urgent">🟡 Urgent + Pas important</option>
+                        <option value="neutre">⚫ Pas urgent + Pas important</option>
                         <option value="fait">✅ Fait</option>
                     </select>
                 </div>
@@ -225,6 +258,108 @@ appliquerSidebar(localStorage.getItem('sidebar-reduite') === '1', false);
 
 <!-- ===== SCRIPTS DE BASE ===== -->
 <script>
+// ===== UTILITAIRES GLOBAUX =====
+
+function formaterDuree(min) {
+    if (!min) return '';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h > 0 && m > 0) return `${h}h${String(m).padStart(2, '0')}`;
+    if (h > 0) return `${h}h`;
+    return `${m}min`;
+}
+
+function lireDureeMinutes() {
+    const h = parseInt(document.getElementById('tache-duree-h').value) || 0;
+    const m = parseInt(document.getElementById('tache-duree-m').value) || 0;
+    const total = h * 60 + m;
+    return total > 0 ? total : null;
+}
+
+function remplirDuree(minutes) {
+    const min = minutes || 0;
+    document.getElementById('tache-duree-h').value = min > 0 ? Math.floor(min / 60) : '';
+    document.getElementById('tache-duree-m').value = min > 0 ? min % 60 : '';
+}
+
+// ===== MINI-CALENDRIER MODAL (récurrence "Autres") =====
+
+const MOIS_NOMS_MODAL = [
+    'Janvier','Février','Mars','Avril','Mai','Juin',
+    'Juillet','Août','Septembre','Octobre','Novembre','Décembre'
+];
+let datesModalSelectionnees = new Set();
+let dateMiniCalModal = new Date();
+
+function naviguerMiniCalModal(direction) {
+    dateMiniCalModal.setMonth(dateMiniCalModal.getMonth() + direction);
+    rendreMiniCalModal();
+}
+
+function rendreMiniCalModal() {
+    const titre = document.getElementById('mini-cal-modal-titre');
+    const grille = document.getElementById('mini-cal-modal-jours');
+    if (!titre || !grille) return;
+
+    const annee = dateMiniCalModal.getFullYear();
+    const mois  = dateMiniCalModal.getMonth();
+    titre.textContent = `${MOIS_NOMS_MODAL[mois]} ${annee}`;
+
+    const premierJour = new Date(annee, mois, 1);
+    let debutSemaine = premierJour.getDay() - 1;
+    if (debutSemaine < 0) debutSemaine = 6;
+    const dernierJour = new Date(annee, mois + 1, 0).getDate();
+    const aujourd_hui = new Date().toISOString().slice(0, 10);
+
+    grille.innerHTML = '';
+    for (let i = 0; i < debutSemaine; i++) {
+        const vide = document.createElement('div');
+        vide.className = 'mini-cal-jour mini-cal-vide';
+        grille.appendChild(vide);
+    }
+    for (let j = 1; j <= dernierJour; j++) {
+        const dateISO = `${annee}-${String(mois+1).padStart(2,'0')}-${String(j).padStart(2,'0')}`;
+        const cel = document.createElement('div');
+        cel.className = 'mini-cal-jour'
+            + (dateISO === aujourd_hui ? ' mini-cal-aujourd-hui' : '')
+            + (datesModalSelectionnees.has(dateISO) ? ' mini-cal-selectionne' : '');
+        cel.textContent = j;
+        cel.addEventListener('click', () => {
+            if (datesModalSelectionnees.has(dateISO)) {
+                datesModalSelectionnees.delete(dateISO);
+                cel.classList.remove('mini-cal-selectionne');
+            } else {
+                datesModalSelectionnees.add(dateISO);
+                cel.classList.add('mini-cal-selectionne');
+            }
+            mettreAJourDatesModal();
+        });
+        grille.appendChild(cel);
+    }
+}
+
+function mettreAJourDatesModal() {
+    const liste = document.getElementById('modal-dates-liste');
+    if (!liste) return;
+    if (datesModalSelectionnees.size === 0) {
+        liste.innerHTML = '<span style="color:var(--texte-secondaire);font-size:0.85rem;">Aucune date sélectionnée</span>';
+        return;
+    }
+    const dates = [...datesModalSelectionnees].sort();
+    liste.innerHTML = dates.map(d => {
+        const [a, m, j] = d.split('-');
+        return `<span class="autres-date-chip">${j}/${m}/${a}
+            <button type="button" onclick="retirerDateModal('${d}')" title="Retirer">×</button>
+        </span>`;
+    }).join('');
+}
+
+function retirerDateModal(dateISO) {
+    datesModalSelectionnees.delete(dateISO);
+    mettreAJourDatesModal();
+    rendreMiniCalModal();
+}
+
 // ===== GESTION DU MODAL =====
 
 let tacheEnCoursId = null; // ID de la tâche en cours de modification
@@ -246,6 +381,9 @@ function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) 
     document.getElementById('groupe-date-fin').style.display = 'none';
     document.getElementById('groupe-jours-semaine').style.display = 'none';
     document.getElementById('groupe-jours-mois').style.display = 'none';
+    document.getElementById('groupe-mini-cal-modal').style.display = 'none';
+    datesModalSelectionnees.clear();
+    rendreMiniCalModal();
     // Effacer les sélections de jours
     document.querySelectorAll('.jour-picker-btn.selectionne, .jour-mois-btn.selectionne')
         .forEach(b => b.classList.remove('selectionne'));
@@ -258,7 +396,7 @@ function ouvrirModal(tache = null, zonePrecochee = null, heurePrecochee = null) 
         document.getElementById('tache-titre').value = tache.titre || '';
         document.getElementById('tache-description').value = tache.description || '';
         document.getElementById('tache-date').value = tache.date_echeance || '';
-        document.getElementById('tache-duree').value = tache.duree_estimee || '';
+        remplirDuree(tache.duree_estimee);
         document.getElementById('tache-categorie').value = tache.categorie || 'Autre';
         document.getElementById('tache-zone').value = tache.zone || 'urgent_important';
         document.getElementById('tache-heure-debut').value = tache.heure_debut || '';
@@ -312,13 +450,12 @@ async function sauvegarderTache(event) {
         titre: document.getElementById('tache-titre').value.trim(),
         description: document.getElementById('tache-description').value.trim() || null,
         date_echeance: document.getElementById('tache-date').value || null,
-        duree_estimee: document.getElementById('tache-duree').value
-            ? parseInt(document.getElementById('tache-duree').value)
-            : null,
+        duree_estimee: lireDureeMinutes(),
         categorie: document.getElementById('tache-categorie').value,
         zone: document.getElementById('tache-zone').value,
         heure_debut: champHeure.value || null,
-        recurrence: document.getElementById('tache-recurrence').value,
+        recurrence: document.getElementById('tache-recurrence').value === 'Autres'
+            ? 'Une fois' : document.getElementById('tache-recurrence').value,
         auto_regenerer: document.getElementById('tache-auto-regenerer').checked,
         projet_id: document.getElementById('tache-projet-id').value
             ? parseInt(document.getElementById('tache-projet-id').value) : null,

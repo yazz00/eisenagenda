@@ -73,10 +73,7 @@ function creerCarteTache(tache) {
     // Durée (format court : 30m ou 1h30)
     let htmlDuree = '';
     if (tache.duree_estimee) {
-        const h = Math.floor(tache.duree_estimee / 60);
-        const m = tache.duree_estimee % 60;
-        const dureeTexte = h > 0 ? `${h}h${m > 0 ? String(m).padStart(2,'0') : ''}` : `${m}m`;
-        htmlDuree = `<span class="carte-tache-duree">⏱ ${dureeTexte}</span>`;
+        htmlDuree = `<span class="carte-tache-duree">⏱ ${formaterDuree(tache.duree_estimee)}</span>`;
     }
 
     carte.innerHTML = `
